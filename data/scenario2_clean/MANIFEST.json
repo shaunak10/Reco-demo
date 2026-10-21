@@ -1,0 +1,12 @@
+{
+  "scenario": "Clean day - everything reconciles, no alert expected",
+  "files_sha256": {
+    "bank_settlement.csv": "904254b9c2c72b83860f03187c9eb11d82f3ecbdb8d35550eaeeda038215cfa0",
+    "gateway_statement.xlsx": "83bf2ba4522abfa51b5ac2e73be2ea9e550f63a1502610fdcd65203b4519cd0d",
+    "ground_truth_exceptions.csv": "a377089a1156cfe0c29bcd7e238df185c37a34638e935f1667844a08fdd504ea",
+    "ground_truth_mapping.csv": "557b84dd3adfbaadc5d92d57cad6760ebe6020bffbf40811c6d0a4fbb42ada1a",
+    "ground_truth_settlement_batches.csv": "59119ce554d397e1cd6cbd7bdb8b27c50f022bba4cb3a427d747b3a4f86303c4",
+    "ground_truth_stage1_ledger_vs_gateway.csv": "4205672b548cb03207ffc2509c28b8b0431d7b221645815ae0f17b7fc85894a9",
+    "merchant_ledger.csv": "601ff0c755a27d51019191a4794803223100ad492577d08d6b93f7de4795bad7"
+  }
+}

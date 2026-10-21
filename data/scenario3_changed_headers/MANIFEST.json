@@ -1,0 +1,13 @@
+{
+  "scenario": "Main demo - 3 days of recharge payments with every exception type",
+  "files_sha256": {
+    "account_statement.xlsx": "909b0497d25a9bf070253cddfea6477dab4dda13bff9a38def801f9212eb3440",
+    "api_bank_credits.json": "35b3ac79c3021112bc7d6edfc15f7ab79ac72e0444808d3c9bb062def85c579a",
+    "ground_truth_exceptions.csv": "43181f714218231f78f59ae14110a0d3f95c379c1480da109b0b273e82a55e5b",
+    "ground_truth_mapping.csv": "d1521d640302ea5f1ae26b71e65b4a91361f2ba05eb5f5ba25c5b16d49badc62",
+    "ground_truth_settlement_batches.csv": "d6cdbc60b1f98d9f743984bd7eec3df18c553263f3d3a6e4b4cc916e2dac3210",
+    "ground_truth_stage1_ledger_vs_gateway.csv": "5eff02bf34d3a75c89bc096a3c8c2f427db150284f5f57473e38a2b0216f17b8",
+    "ledger_export.xlsx": "6867485cdf8196e98e50cd1776bbc37ae66d875a7b89952de6cb48907336f211",
+    "pg_report.csv": "7bb600fb7a31d00b68acb860e410140ddf7fb84312767acf573a6b4466b367bf"
+  }
+}

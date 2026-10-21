@@ -1,0 +1,16 @@
+Exception_Type,Reference,Exact_Amount,Flag,Note
+DUPLICATE_GATEWAY,RCH-261015-0003,149.00,,Repeated gateway row is excluded from matching and settlement sum
+DUPLICATE_LEDGER,RCH-261015-0012,599.00,,Repeated ledger row is excluded from matching
+FEE_MISMATCH,RCH-261015-0015,8.85,,recorded fee minus contract fee
+AMOUNT_MISMATCH,RCH-261016-0004,30.00,,ledger minus gateway
+LEDGER_ONLY,RCH-261017-0002,2999.00,,typo pair
+GATEWAY_ONLY,RCH-261017-O002,2999.00,,typo pair
+GATEWAY_ONLY,RCH-261017-9901,399.00,,genuine
+LEDGER_ONLY,RCH-261016-9902,299.00,,genuine
+DELAYED_SETTLEMENT,UTRPG26101701,0.00,,credit exact but late
+SETTLEMENT_VARIANCE,UTRPG26101702,-1200.00,,bank minus expected net
+MISSING_BANK_CREDIT,UTRPG26101802,3776.94,RESOLVED_BY_API,expected net settlement with no credit
+MISSING_BANK_CREDIT,UTRPG26101901,5956.67,,expected net settlement with no credit
+DELAYED_SETTLEMENT,UTRPG26101802,0.00,AFTER_API_ONLY,credit exact but late (arrives via API)
+UNEXPLAINED_BANK_CREDIT,INT261015CR,412.50,,bank credit not linked to any gateway settlement
+UNEXPLAINED_BANK_CREDIT,NEFTACME00331,10000.00,,bank credit not linked to any gateway settlement

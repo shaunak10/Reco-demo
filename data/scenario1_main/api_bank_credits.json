@@ -1,0 +1,16 @@
+[
+  {
+    "record_id": "BNK-20261021-0001",
+    "bank_utr": "UTRPG26101802",
+    "credited_on": "2026-10-21",
+    "credit_amount": "3776.94",
+    "remarks": "NEFT CR-PAYGATE DEMO-SB-20261018-B"
+  },
+  {
+    "record_id": "BNK-20261018-0002",
+    "bank_utr": "UTRPG26101801",
+    "credited_on": "2026-10-18",
+    "credit_amount": "7693.37",
+    "remarks": "NEFT CR-PAYGATE DEMO-SB-20261018-A"
+  }
+]

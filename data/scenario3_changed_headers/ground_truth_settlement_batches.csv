@@ -1,0 +1,8 @@
+Settlement_Ref,Batch_Id,Gateway_Txn_Count_Excl_Duplicates,Gross,Fees_Recorded,Expected_Net,Bank_Credit,Variance_Bank_Minus_Expected,Expected_Outcome,Expected_After_API_Fetch,Note
+UTRPG26101601,SB-20261016-A,10,5073.00,89.80,4983.20,4983.20,0.00,MATCHED,MATCHED,Clean batch. One gateway row is repeated in the statement (duplicate).
+UTRPG26101602,SB-20261016-B,9,9942.00,184.81,9757.19,9757.19,0.00,MATCHED,MATCHED,Balances exactly. One txn carries an over-charged fee; one order is booked twice in the ledger.
+UTRPG26101701,SB-20261017-A,10,6612.00,117.03,6494.97,6494.97,0.00,MATCHED_DELAYED,MATCHED_DELAYED,Bank credited 3 days late but the amount is exact. One txn has a different ledger amount.
+UTRPG26101702,SB-20261017-B,8,11292.00,199.85,11092.15,9892.15,-1200.00,SETTLEMENT_VARIANCE,SETTLEMENT_VARIANCE,"Bank credit is short by exactly 1,200.00 - unexplained settlement variance."
+UTRPG26101801,SB-20261018-A,10,7832.00,138.63,7693.37,7693.37,0.00,MATCHED,MATCHED,Balances exactly. Contains a mistyped reference pair and one gateway-only payment.
+UTRPG26101802,SB-20261018-B,7,3845.00,68.06,3776.94,,,MISSING_BANK_CREDIT,MATCHED_DELAYED,No credit in the uploaded statement; the credit arrives late through the bank REST API.
+UTRPG26101901,SB-20261019-A,6,6064.00,107.33,5956.67,,,MISSING_BANK_CREDIT,MISSING_BANK_CREDIT,Genuinely missing bank credit - never arrives in any source.

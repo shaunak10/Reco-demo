@@ -1,0 +1,18 @@
+# build output
+bin/
+obj/
+.vs/
+*.user
+# runtime state (never commit databases, uploads, secrets or sandbox mail)
+**/App_Data/
+data/mailbox/
+*.db
+*.db-shm
+*.db-wal
+# python
+__pycache__/
+.pytest_cache/
+.venv/
+# editor/os
+.idea/
+Thumbs.db

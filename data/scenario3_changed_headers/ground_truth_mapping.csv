@@ -1,0 +1,24 @@
+Source,Header,Expected_Canonical_Field
+ledger,Internal ID,IGNORE
+ledger,Reference No,TransactionRef
+ledger,Order Date,TxnDate
+ledger,Product,IGNORE
+ledger,Telecom Operator,IGNORE
+ledger,Value (INR),Amount
+ledger,Channel,IGNORE
+ledger,Order State,Status
+gateway,Merchant Order Id,TransactionRef
+gateway,PG Transaction Id,IGNORE
+gateway,Captured On,TxnDate
+gateway,Amount Collected,Amount
+gateway,Commission,Fees
+gateway,Amount Payable,IGNORE
+gateway,Payout Date,IGNORE
+gateway,Bank UTR,SettlementRef
+gateway,State,Status
+bank,Value Dt,TxnDate
+bank,Txn Remarks,IGNORE
+bank,Utr No,SettlementRef
+bank,Dr Amt,IGNORE
+bank,Cr Amt,Amount
+bank,Running Balance,IGNORE

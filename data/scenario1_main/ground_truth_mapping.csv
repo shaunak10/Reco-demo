@@ -1,0 +1,24 @@
+Source,Header,Expected_Canonical_Field
+ledger,Ledger_ID,IGNORE
+ledger,Order_Ref,TransactionRef
+ledger,Booking_Date,TxnDate
+ledger,Service,IGNORE
+ledger,Operator,IGNORE
+ledger,Amount_INR,Amount
+ledger,Pay_Mode,IGNORE
+ledger,Order_Status,Status
+gateway,Payment Ref,TransactionRef
+gateway,Gateway Txn ID,IGNORE
+gateway,Txn Date,TxnDate
+gateway,Gross Amount,Amount
+gateway,MDR Fee,Fees
+gateway,Net Payable,IGNORE
+gateway,Settlement Date,IGNORE
+gateway,UTR,SettlementRef
+gateway,Txn Status,Status
+bank,Credit Date,TxnDate
+bank,Narration,IGNORE
+bank,Bank Reference,SettlementRef
+bank,Withdrawal Amt,IGNORE
+bank,Credit Amount,Amount
+bank,Closing Balance,IGNORE
