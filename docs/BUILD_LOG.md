@@ -67,14 +67,9 @@ Everything else falls under a fallback policy: **signed-in users only**.
 | Exit test "Operator cannot access Admin approval operation" | passes; **mutation check:** with the folder convention and the attribute removed, the Operator tests fail 3 of 4, so the tests do detect a missing guard |
 | Manual browser check | Operator: dashboard OK, `/Admin/Approvals` redirected to the 403 page. Admin: both Admin pages open, audit log shows real sign-in/out events. Light + dark theme and the mobile drawer render correctly |
 
-### How to run (until the one-command script in Step 11)
-```powershell
-# AI service
-& C:\Users\Shaunak\.reconai\venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8765 --app-dir ai
-# Web app (Development environment seeds the demo users)
-& C:\Users\Shaunak\.reconai\dotnet\dotnet.exe run --project src/ReconAI.Web --urls http://localhost:5080 -- --environment Development
-```
-If the repo path is longer than ~120 characters on Windows, map a short drive first (`subst R: <repo folder>`).
+### How to run
+Double-click `run-demo.cmd` (or `.\run-demo.ps1`) in the project folder: it starts the AI service and the web app, waits until both answer, and opens http://localhost:5080. `stop-demo.cmd` stops them. See the README for ports, logs and troubleshooting.
+
 
 ---
 

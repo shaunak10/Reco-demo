@@ -18,3 +18,5 @@ __pycache__/
 Thumbs.db
 # derived model weights
 ai/.cache/
+# launcher logs and run state
+logs/
