@@ -1,0 +1,31 @@
+@page
+@model AuditModel
+@{
+    ViewData["Title"] = "Audit log";
+}
+<section class="card">
+    <h3>Latest 100 events <span class="muted small">&middot; append-only, scoped to your company</span></h3>
+    @if (Model.Events.Count == 0)
+    {
+        <p class="muted">No events yet.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th scope="col">When (UTC)</th><th scope="col">Who</th><th scope="col">Action</th><th scope="col">Detail</th></tr></thead>
+                <tbody>
+                    @foreach (var e in Model.Events)
+                    {
+                        <tr>
+                            <td class="nowrap"><time datetime="@e.OccurredUtc.ToString("o")">@e.OccurredUtc.ToString("dd MMM HH:mm:ss")</time></td>
+                            <td>@e.Actor</td>
+                            <td><span class="chip @(e.Action.Contains("Fail") || e.Action.Contains("Block") ? "chip-bad" : "chip-neutral")">@e.Action</span></td>
+                            <td class="muted">@e.Detail</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

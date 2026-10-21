@@ -1,0 +1,12 @@
+@page
+@model ApprovalsModel
+@{
+    ViewData["Title"] = "Rule approvals";
+}
+<section class="card">
+    <h3>Rules awaiting approval</h3>
+    <div class="empty-inline">
+        <p><strong>No rule drafts yet.</strong></p>
+        <p class="muted">Operators draft a reconciliation rule in plain English with the AI rule wizard (Step 5). A draft appears here only after it has passed schema validation and a simulation on sample rows. Approve and reject are Company Admin operations; the AI can never activate a rule.</p>
+    </div>
+</section>

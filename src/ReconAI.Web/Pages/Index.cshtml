@@ -1,0 +1,80 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+    var isAdmin = User.IsInRole(Roles.CompanyAdmin);
+    var tenant = User.FindFirst(AppClaims.TenantName)?.Value;
+}
+
+<section class="hero">
+    <div>
+        <p class="eyebrow">@tenant</p>
+        <h2>Welcome, @User.Identity!.Name</h2>
+        <p class="muted">
+            You are signed in as <strong>@(isAdmin ? "Company Admin" : "Operator")</strong>.
+            @if (Model.PreviousSignInUtc is { } prev)
+            {
+                <span>Previous sign-in: <time datetime="@prev.ToString("o")">@prev.ToString("dd MMM yyyy HH:mm") UTC</time>.</span>
+            }
+        </p>
+    </div>
+</section>
+
+<section class="grid grid-3" aria-label="System status">
+    <article class="card status-card">
+        <h3>Database</h3>
+        <p class="status"><span class="dot dot-ok" aria-hidden="true"></span>Online</p>
+        <p class="muted small">SQLite stand-in for SQL Server &middot; @Model.TenantUsers demo user(s) &middot; @Model.AuditEvents audit event(s) in this tenant</p>
+    </article>
+    <article class="card status-card">
+        <h3>AI service</h3>
+        <p class="status">
+            <span class="dot @(Model.Ai.Reachable ? "dot-ok" : "dot-warn")" aria-hidden="true"></span>@(Model.Ai.Reachable ? "Online" : "Not running")
+        </p>
+        <p class="muted small">
+            @if (Model.Ai.Reachable)
+            {
+                <text>@Model.Ai.Service v@(Model.Ai.Version) &middot; local Python service, models arrive in Steps 4, 5 and 7</text>
+            }
+            else
+            {
+                <text>@Model.Ai.Detail</text>
+            }
+        </p>
+    </article>
+    <article class="card status-card">
+        <h3>Active reconciliation rule</h3>
+        <p class="status"><span class="dot dot-idle" aria-hidden="true"></span>None yet</p>
+        <p class="muted small">A rule is drafted by AI (Step 5), tested, then approved by a Company Admin before it can run.</p>
+    </article>
+</section>
+
+<section class="grid grid-2">
+    <article class="card">
+        <h3>What your role can do</h3>
+        <table class="table table-compact">
+            <thead><tr><th scope="col">Capability</th><th scope="col" class="center">Operator</th><th scope="col" class="center">Company Admin</th></tr></thead>
+            <tbody>
+                <tr><td>Upload files, review AI column mapping, run reconciliation</td><td class="center">Yes</td><td class="center">Yes</td></tr>
+                <tr><td>Draft and test a rule from plain English</td><td class="center">Yes</td><td class="center">Yes</td></tr>
+                <tr><td>Configure API sources and view alerts</td><td class="center">Yes</td><td class="center">Yes</td></tr>
+                <tr class="row-emph"><td>Approve or reject a rule (activation)</td><td class="center"><span class="chip chip-bad">Blocked</span></td><td class="center"><span class="chip chip-ok">Yes</span></td></tr>
+                <tr><td>Audit log</td><td class="center"><span class="chip chip-bad">Blocked</span></td><td class="center"><span class="chip chip-ok">Yes</span></td></tr>
+            </tbody>
+        </table>
+        <p class="muted small">AI can propose, never approve. Restrictions are enforced on the server, not only hidden in the menu.</p>
+    </article>
+
+    <article class="card">
+        <h3>Prototype build progress</h3>
+        <ol class="progress-list">
+            <li class="done"><span>1</span>Synthetic datasets and ground truth</li>
+            <li class="done"><span>2</span>Solution, sign-in and role gating</li>
+            <li><span>3</span>File import and storage</li>
+            <li><span>4</span>AI column mapping</li>
+            <li><span>5</span>English-to-rule with Admin approval</li>
+            <li><span>6</span>Deterministic matcher and exceptions</li>
+            <li><span>7&ndash;11</span>AI explanation, API, alerts, dashboards, packaging</li>
+        </ol>
+    </article>
+</section>

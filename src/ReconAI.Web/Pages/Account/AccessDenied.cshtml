@@ -1,0 +1,11 @@
+@page
+@model AccessDeniedModel
+@{
+    ViewData["Title"] = "Access denied";
+}
+<div class="empty-state">
+    <div class="empty-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9.5 9.5l5 5 M14.5 9.5l-5 5" /></svg></div>
+    <h2>You do not have permission to do that</h2>
+    <p>This area is limited to the <strong>Company Admin</strong> role. Operators can draft and test rules, but only a Company Admin can approve and activate them.</p>
+    <p><a class="btn btn-primary" asp-page="/Index">Back to dashboard</a></p>
+</div>
