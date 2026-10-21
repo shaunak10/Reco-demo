@@ -1,0 +1,157 @@
+@page
+@using ReconAI.Core.Importing
+@using ReconAI.Data
+@model NewModel
+@{
+    ViewData["Title"] = "New reconciliation";
+}
+
+<section class="intro">
+    <p class="eyebrow">Step 1 &middot; Upload sources</p>
+    <h2>Upload your three sources</h2>
+    <p class="muted">CSV or Excel (.xlsx), up to 5 MB each. Column headings can differ from file to file: in the next step you confirm how each column maps to the canonical fields. Nothing is imported until you confirm the mapping, and the same file is never imported twice.</p>
+</section>
+
+@if (Model.Notice is not null)
+{
+    <div class="alert alert-ok" role="status">@Model.Notice</div>
+}
+
+<section class="grid grid-3 upload-grid" aria-label="Upload sources">
+    @{ var n = 0; }
+    @foreach (var kind in NewModel.Kinds)
+    {
+        n++;
+        var current = Model.Latest(kind);
+        var label = SourceSchema.Label(kind);
+        <article class="card upload-card" id="upload-@kind.ToString().ToLowerInvariant()">
+            <header class="card-head"><span class="step-badge" aria-hidden="true">@n</span><h3>@label</h3></header>
+            <p class="muted small">@NewModel.Hint(kind)</p>
+
+            @if (Model.Errors.TryGetValue(kind, out var error))
+            {
+                <div class="alert alert-bad" role="alert">@error</div>
+            }
+
+            <form method="post" enctype="multipart/form-data" asp-page-handler="Upload" class="upload-form" data-max-bytes="5242880">
+                <input type="hidden" name="kind" value="@kind" />
+                <label class="visually-hidden" for="file-@kind">Choose the @label.ToLowerInvariant() file</label>
+                <input class="file-input" id="file-@kind" type="file" name="file" accept=".csv,.xlsx" required />
+                <p class="upload-msg small" role="status" aria-live="polite"></p>
+                <button class="btn btn-primary btn-block" type="submit">Upload @label.ToLowerInvariant()</button>
+            </form>
+
+            @if (current is not null)
+            {
+                <div class="current-file">
+                    <div class="current-top">
+                        <strong class="file-name" title="@current.OriginalFileName">@current.OriginalFileName</strong>
+                        @if (current.Status == SourceFileStatus.Imported)
+                        {
+                            <span class="chip chip-ok">Imported</span>
+                        }
+                        else
+                        {
+                            <span class="chip chip-warn">Needs mapping</span>
+                        }
+                    </div>
+                    <p class="muted small">
+                        @(current.Status == SourceFileStatus.Imported ? $"{current.ValidRowCount} valid, {current.RejectedRowCount} rejected rows" : $"{current.DataRowCount} data rows")
+                        &middot; file #@current.Id
+                    </p>
+                    @if (current.Status == SourceFileStatus.Imported)
+                    {
+                        <a class="btn btn-secondary btn-sm" asp-page="File" asp-route-id="@current.Id">View rows</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-primary btn-sm" asp-page="Mapping" asp-route-id="@current.Id">Map columns</a>
+                    }
+                </div>
+            }
+        </article>
+    }
+</section>
+
+@if (Model.Samples.Count > 0)
+{
+    <section class="card">
+        <h3>Try it with the synthetic datasets</h3>
+        <p class="muted small">Synthetic data only. Download the three source files of a scenario, then upload each one above. The ground-truth files list the expected outcomes so the results can be checked independently.</p>
+        <div class="sample-grid">
+            @foreach (var s in Model.Samples)
+            {
+                <div class="sample">
+                    <h4>@NewModel.ScenarioTitle(s.Name)</h4>
+                    <ul class="file-list">
+                        @foreach (var f in s.Files)
+                        {
+                            <li class="@(f.StartsWith("ground_truth") ? "is-truth" : "")"><a asp-page-handler="Sample" asp-route-scenario="@s.Name" asp-route-file="@f">@f</a></li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+<section class="card">
+    <h3>Uploaded files</h3>
+    @if (Model.Files.Count == 0)
+    {
+        <p class="muted">No files uploaded yet.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr><th scope="col">#</th><th scope="col">Source</th><th scope="col">File</th><th scope="col" class="num">Rows</th><th scope="col">Status</th><th scope="col">Uploaded</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in Model.Files)
+                    {
+                        <tr class="@(f.IsVoided ? "is-voided" : "")">
+                            <td>@f.Id</td>
+                            <td>@SourceSchema.Label(f.Kind)</td>
+                            <td class="file-name" title="@f.OriginalFileName">@f.OriginalFileName</td>
+                            <td class="num">
+                                @if (f.Status == SourceFileStatus.Imported)
+                                {
+                                    <span>@f.ValidRowCount</span>@if (f.RejectedRowCount > 0)
+                                    {
+                                        <span class="muted"> + @f.RejectedRowCount rejected</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="muted">@f.DataRowCount</span>
+                                }
+                            </td>
+                            <td>
+                                @if (f.IsVoided) { <span class="chip chip-neutral">Voided</span> }
+                                else if (f.Status == SourceFileStatus.Imported) { <span class="chip chip-ok">Imported</span> }
+                                else { <span class="chip chip-warn">Needs mapping</span> }
+                            </td>
+                            <td class="muted nowrap"><time datetime="@f.UploadedUtc.ToString("o")">@Fmt.Utc(f.UploadedUtc)</time><br /><span class="small">@f.UploadedByEmail</span></td>
+                            <td class="nowrap">
+                                @if (!f.IsVoided && f.Status == SourceFileStatus.AwaitingMapping)
+                                {
+                                    <a class="btn btn-primary btn-sm" asp-page="Mapping" asp-route-id="@f.Id">Map columns</a>
+                                }
+                                else
+                                {
+                                    <a class="btn btn-secondary btn-sm" asp-page="File" asp-route-id="@f.Id">Open</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/upload.js" asp-append-version="true"></script>
+}

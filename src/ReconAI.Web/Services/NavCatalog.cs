@@ -1,7 +1,7 @@
 namespace ReconAI.Web.Services;
 
 /// <param name="Page">Razor page path; null while the screen is not built yet (shown disabled with its build step).</param>
-public sealed record NavItem(string Title, string Group, string Icon, string? Page, int Step, bool AdminOnly = false);
+public sealed record NavItem(string Title, string Group, string Icon, string? Page, int Step, bool AdminOnly = false, string? ActivePrefix = null);
 
 /// <summary>Single source of truth for the sidebar. Later steps only need to set <c>Page</c> to enable an entry.</summary>
 public static class NavCatalog
@@ -9,7 +9,7 @@ public static class NavCatalog
     public static readonly IReadOnlyList<NavItem> Items =
     [
         new("Dashboard",          "Operations",     "grid",   "/Index",             2),
-        new("New reconciliation", "Operations",     "upload", null,                 3),
+        new("New reconciliation", "Operations",     "upload", "/Recon/New",         3, ActivePrefix: "/Recon/"),
         new("Rule wizard",        "Operations",     "sliders", null,                5),
         new("Runs & results",     "Operations",     "check",  null,                 6),
         new("API connections",    "Integrations",   "plug",   null,                 8),

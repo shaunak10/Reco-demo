@@ -75,3 +75,65 @@ Everything else falls under a fallback policy: **signed-in users only**.
 & C:\Users\Shaunak\.reconai\dotnet\dotnet.exe run --project src/ReconAI.Web --urls http://localhost:5080 -- --environment Development
 ```
 If the repo path is longer than ~120 characters on Windows, map a short drive first (`subst R: <repo folder>`).
+
+---
+
+## Step 3 - File import and SQL storage
+
+### What was built
+| Area | Contents |
+|---|---|
+| `ReconAI.Core/Importing` | `TabularReader` (CSV + XLSX, limits, safety checks), `ValueParsers` (exact money, day-first dates), `Canonicalizer` (mapping validation, canonical rows, row keys + checksums), `SourceSchema` (the three sources, canonical fields, mandatory sets) |
+| `ReconAI.Data` | Entities `SourceFile`, `ColumnMapping`, `SourceRow`; `Money` converter (decimal <-> integer paise); append-only guard generalised to `IAppendOnly`; migration `SourceImport` |
+| `ReconAI.Web` | `ImportService` (upload, preview, confirm, void), `AuditLog`, `SampleData`; pages **New reconciliation** (`/Recon/New`), **Map columns** (`/Recon/Mapping/{id}`), **File** (`/Recon/File/{id}`) |
+
+### Flow
+1. **Upload** a file into the Ledger / Gateway / Bank box. It is validated, its SHA-256 is computed, the original bytes are stored untouched (named by checksum, outside `wwwroot`), and a `SourceFile` is created as *AwaitingMapping*. **No rows exist yet.**
+2. **Map columns**: the operator chooses a canonical field per column. A mapping confirmed earlier for the same headings is offered again. An AJAX dry run validates every row without storing anything.
+3. **Confirm**: in one transaction the mapping is recorded and every row is written, valid or rejected, each with an immutable key and checksum. Rejected rows are kept with their reason; if **no** row is valid, nothing is imported.
+4. **Void** (reason required) removes a file from use but keeps its rows for audit and frees its checksum for a corrected re-upload.
+
+### Schema (migration `SourceImport`)
+- `SourceFiles(Id, TenantId, Kind, OriginalFileName, Format, SheetName, SizeBytes, Sha256, StoredPath, HeaderJson, Status, DataRowCount, BlankRowsSkipped, ValidRowCount, RejectedRowCount, UploadedBy*, UploadedUtc, ImportedUtc, IsVoided, Voided*)`; **unique `(TenantId, Kind, Sha256) WHERE IsVoided = 0`**
+- `ColumnMappings(Id, TenantId, SourceFileId UNIQUE, Kind, HeaderSignature, MappingJson, Origin, ConfirmedBy*, ConfirmedUtc)` - append-only
+- `SourceRows(Id, TenantId, SourceFileId, Kind, RowNumber, RowKey, RowSha256, RawJson, ImportStatus, RejectReason, TransactionRef, SettlementRef, Amount, Fees, Currency, TxnDate, Status)`; unique `(SourceFileId, RowNumber)`; indexes on `(TenantId, Kind, TransactionRef)` and `(..., SettlementRef)` for the Step 6 matcher - append-only
+- Row identity: `RowKey = {L|G|B}-{first 12 hex of file SHA-256}-{row number}`, `RowSha256` = hash of the original cells. Same bytes => same keys and checksums.
+
+### Rules enforced on import
+- Extensions `.csv` / `.xlsx` only, **and** the content must match (a zip renamed `.csv`, a text file renamed `.xlsx`, binary data, macro workbooks, zip bombs are refused). Limits: 5 MB, 50,000 rows, 60 columns, 512 characters per cell.
+- Headings must be present and unique (case-insensitive). Trailing empty columns are ignored.
+- **Money**: parsed to `decimal`; more than 2 decimal places is **rejected, never rounded**; `12,34`, `1e3`, negatives, `(100.00)` are rejected; `1,234.50`, `12,34,567.00`, `Rs. 149` are accepted. Stored as integer paise, so SQL `SUM` is exact, and the database layer itself refuses a value that would need rounding.
+- **Dates** are day-first (`03/04/2026` = 3 April); `yyyy-MM-dd`, `dd/MM/yyyy`, `dd-MMM-yyyy` and Excel date cells are accepted.
+- Currency defaults to INR when unmapped; anything other than INR is rejected (prototype scope).
+- Mandatory fields: Ledger = reference, amount, date; Gateway = reference, amount, fees, settlement reference, date; Bank = settlement reference, amount, date.
+
+### Routes
+| Route | Access |
+|---|---|
+| `GET /Recon/New`, `POST ?handler=Upload`, `GET ?handler=Sample&scenario=&file=` | Operator, Company Admin |
+| `GET /Recon/Mapping/{id}`, `POST ?handler=Preview` (JSON), `POST ?handler=Confirm` | Operator, Company Admin |
+| `GET /Recon/File/{id}`, `POST ?handler=Void` | Operator, Company Admin |
+
+All other behaviour follows the existing rules: signed-in only, antiforgery on every POST, tenant filter on every query.
+
+### Assumptions and limitations
+- Column mapping is **manual** in this step; AI suggestions are Step 4 and will use the same page.
+- Only the first visible sheet of a workbook is read. Excel formulas are read as their cached values. Leading zeros lost by Excel's own number storage cannot be recovered.
+- Uploaded originals are kept in `App_Data/uploads/{tenant}/{sha256}.{ext}` (gitignored) and are re-hashed before every import. There is no virus scanning in the prototype.
+- The zip-bomb guard trusts the archive's declared sizes; it is a prototype-level safeguard.
+- Duplicate *rows* across different files, and the rule that a file in use by a run cannot be voided, arrive with the matcher in Step 6. This step blocks duplicate *files*.
+- Sample-data downloads are served only when `Demo:SampleData` is on (Development) and only for names present in a scenario folder.
+- The `appsettings` upload and sample paths are configurable (`Storage:UploadsPath`, `Demo:SampleDataPath`).
+
+### Measured results
+| Check | Result |
+|---|---|
+| `dotnet test` | **144 passed, 0 failed** (36 from Step 2, 108 new) |
+| `pytest` (ai/) | 2 passed |
+| Dataset verifier | OK on 3 scenarios |
+| Exit test "same files produce same canonical rows" | Passes at two levels: the importer (3 sources x 2 runs) and the database (two separate databases import the same three files; every row key, checksum, raw cell and canonical value is identical) |
+| Exit test "duplicate upload doesn't double-count" | Passes: second upload refused, still 1 file / 61 rows, SQL total unchanged at 51,189.00; also caught before the first copy was mapped, and when the same file goes into the wrong box; the database independently blocks a second active copy |
+| Ground-truth agreement | Imported ledger total 51,189.00, gateway gross incl. the duplicated row, gateway fees and bank credits equal the independently authored ground truth to the paisa; CSV, XLSX and renamed-heading variants give identical canonical rows |
+| Error feedback | 9 bad-file cases (wrong type, empty, 6 MB, fake xlsx, binary, no data, duplicate/blank headings) each give a specific message, store nothing and are audited |
+| Mutation check | With row keys made non-deterministic and the 2-decimal rule disabled, 8 tests fail; code restored |
+| Manual browser check | Upload -> mapping (live required-field checklist, AJAX check: 61 valid / 0 rejected) -> confirm -> file page (61 rows, total 51,189.00); duplicate refused with a clear message; no console errors; no horizontal scroll at phone width |

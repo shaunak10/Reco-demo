@@ -30,7 +30,7 @@
                     <div class="nav-group">@group.Key</div>
                     @foreach (var item in group)
                     {
-                        var active = item.Page is not null && item.Page == current;
+                        var active = item.Page is not null && (current == item.Page || (item.ActivePrefix is not null && current is not null && current.StartsWith(item.ActivePrefix, StringComparison.Ordinal)));
                         if (item.Page is null)
                         {
                             <span class="nav-item is-disabled" aria-disabled="true" title="Built in Step @item.Step of the implementation plan">

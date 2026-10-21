@@ -1,0 +1,92 @@
+@page "{id:int}"
+@using ReconAI.Core.Importing
+@model MappingModel
+@{
+    ViewData["Title"] = "Confirm column mapping";
+    var source = Model.Source!;
+    var headers = Model.Proposal.Headers;
+}
+
+<nav class="crumbs" aria-label="Breadcrumb"><a asp-page="New">New reconciliation</a> <span aria-hidden="true">/</span> <span>Map columns</span></nav>
+
+<section class="card">
+    <div class="facts">
+        <div><span class="fact-label">Source</span><strong>@SourceSchema.Label(source.Kind)</strong></div>
+        <div><span class="fact-label">File</span><strong class="file-name" title="@source.OriginalFileName">@source.OriginalFileName</strong></div>
+        <div><span class="fact-label">Size / rows</span><strong>@Fmt.Bytes(source.SizeBytes) &middot; @source.DataRowCount rows &middot; @headers.Count columns</strong></div>
+        <div><span class="fact-label">SHA-256</span><code title="@source.Sha256">@source.Sha256[..16]...</code></div>
+    </div>
+</section>
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert-bad" role="alert">@Model.Error</div>
+}
+
+@if (headers.Count > 0)
+{
+    <form method="post" id="mapForm" asp-page-handler="Confirm" asp-route-id="@source.Id"
+          data-preview-url="@Url.Page("/Recon/Mapping", "Preview", new { id = source.Id })"
+          data-required='@System.Text.Json.JsonSerializer.Serialize(Model.Mandatory.Select(f => new { name = f.ToString(), label = SourceSchema.Label(f) }))'>
+
+        @if (Model.Proposal.SavedFields is not null)
+        {
+            <div class="banner banner-info" role="status">
+                <strong>Saved mapping applied.</strong> This file has the same headings as one confirmed earlier@(Model.Proposal.SavedBy is null ? "" : $" by {Model.Proposal.SavedBy}")@(Model.Proposal.SavedUtc is { } d ? $" on {Fmt.Utc(d)}" : ""). Check it, then confirm.
+            </div>
+        }
+        else
+        {
+            <div class="banner" role="note">
+                Choose, for each column, which canonical field it feeds. Fields marked <span class="req">required</span> must be mapped. Columns you leave as "ignore" are kept in the stored row but not used for matching. AI suggestions arrive in Step 4.
+            </div>
+        }
+
+        <section class="card">
+            <h3>Map the columns</h3>
+            <ul class="checklist" id="requiredList" aria-label="Required fields">
+                @foreach (var f in Model.Mandatory)
+                {
+                    <li data-field="@f"><span class="tick" aria-hidden="true"></span><span>@SourceSchema.Label(f)</span></li>
+                }
+            </ul>
+            <div class="table-wrap">
+                <table class="table mapping-table">
+                    <thead><tr><th scope="col">#</th><th scope="col">Column heading</th><th scope="col">Sample values</th><th scope="col">Maps to</th></tr></thead>
+                    <tbody>
+                        @for (var i = 0; i < headers.Count; i++)
+                        {
+                            var chosen = i < Model.Fields.Length ? Model.Fields[i] ?? "" : "";
+                            var samples = Model.Proposal.SampleRows.Select(r => r[i]).Where(v => v.Length > 0).Distinct().Take(3).ToList();
+                            <tr>
+                                <td class="muted">@(i + 1)</td>
+                                <td><code>@headers[i]</code></td>
+                                <td class="samples">@(samples.Count == 0 ? "(empty)" : string.Join("   |   ", samples))</td>
+                                <td>
+                                    <select name="Fields" aria-label="Canonical field for column @headers[i]">
+                                        <option value="" selected="@(chosen == "")">- ignore this column -</option>
+                                        @foreach (var f in Model.Allowed)
+                                        {
+                                            <option value="@f" selected="@(chosen == f.ToString())" title="@SourceSchema.Describe(f)">@SourceSchema.Label(f)@(Model.Mandatory.Contains(f) ? " (required)" : "")</option>
+                                        }
+                                    </select>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="actions">
+                <button type="button" class="btn btn-secondary" id="previewBtn">Check mapping on all @source.DataRowCount rows</button>
+                <button type="submit" class="btn btn-primary">Confirm mapping and import</button>
+                <a class="btn btn-ghost" asp-page="File" asp-route-id="@source.Id">Cancel</a>
+            </div>
+        </section>
+    </form>
+
+    <section class="card" id="previewPanel" hidden aria-live="polite" aria-label="Mapping check result"></section>
+}
+
+@section Scripts {
+    <script src="~/js/mapping.js" asp-append-version="true"></script>
+}

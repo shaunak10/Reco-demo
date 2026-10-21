@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using ReconAI.Core.Security;
@@ -20,6 +21,10 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ITenantContext, HttpTenantContext>();
 builder.Services.AddDbContext<ReconDbContext>(o => o.UseSqlite(csb.ToString()));
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<AuditLog>();
+builder.Services.AddScoped<ImportService>();
+builder.Services.AddSingleton<SampleData>();
+builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = 12 * 1024 * 1024);   // file limit is 5 MB; see ImportService.Limits
 
 // ---- AI service (localhost only). The deterministic engine must keep working when this is down. ----
 builder.Services.AddHttpClient<AiHealthClient>(c =>
@@ -53,6 +58,7 @@ builder.Services.AddAuthorization(o =>
 builder.Services.AddRazorPages(o =>
 {
     o.Conventions.AuthorizeFolder("/Admin", Policies.CompanyAdminOnly);
+    o.Conventions.AuthorizeFolder("/Recon", Policies.OperatorOrAdmin);
 });
 
 var app = builder.Build();

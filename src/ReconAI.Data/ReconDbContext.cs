@@ -23,6 +23,9 @@ public class ReconDbContext : DbContext
     public DbSet<DemoTenant> Tenants => Set<DemoTenant>();
     public DbSet<DemoUser> Users => Set<DemoUser>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<SourceFile> SourceFiles => Set<SourceFile>();
+    public DbSet<ColumnMapping> ColumnMappings => Set<ColumnMapping>();
+    public DbSet<SourceRow> SourceRows => Set<SourceRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -51,8 +54,60 @@ public class ReconDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.OccurredUtc });
         });
 
+        b.Entity<SourceFile>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(24);
+            e.Property(x => x.OriginalFileName).HasMaxLength(260);
+            e.Property(x => x.Format).HasMaxLength(8);
+            e.Property(x => x.SheetName).HasMaxLength(100);
+            e.Property(x => x.Sha256).HasMaxLength(64).IsRequired();
+            e.Property(x => x.StoredPath).HasMaxLength(400);
+            e.Property(x => x.UploadedByEmail).HasMaxLength(256);
+            e.Property(x => x.VoidedByEmail).HasMaxLength(256);
+            e.Property(x => x.VoidReason).HasMaxLength(300);
+            // The same bytes can be active only once per source type; a voided file frees the checksum for a corrected re-import.
+            // (SQLite syntax; on SQL Server the filter is [IsVoided] = 0.)
+            e.HasIndex(x => new { x.TenantId, x.Kind, x.Sha256 }).IsUnique().HasFilter("\"IsVoided\" = 0");
+            e.HasIndex(x => new { x.TenantId, x.UploadedUtc });
+        });
+
+        b.Entity<ColumnMapping>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.HeaderSignature).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Origin).HasMaxLength(32);
+            e.Property(x => x.ConfirmedByEmail).HasMaxLength(256);
+            e.HasOne(x => x.SourceFile).WithMany().HasForeignKey(x => x.SourceFileId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.SourceFileId).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.Kind, x.HeaderSignature });
+        });
+
+        b.Entity<SourceRow>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.ImportStatus).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.RowKey).HasMaxLength(40).IsRequired();
+            e.Property(x => x.RowSha256).HasMaxLength(64).IsRequired();
+            e.Property(x => x.RejectReason).HasMaxLength(600);
+            e.Property(x => x.TransactionRef).HasMaxLength(64);
+            e.Property(x => x.SettlementRef).HasMaxLength(64);
+            e.Property(x => x.Currency).HasMaxLength(3);
+            e.Property(x => x.Status).HasMaxLength(32);
+            e.Property(x => x.Amount).HasConversion(Money.Converter);   // integer paise in SQLite
+            e.Property(x => x.Fees).HasConversion(Money.Converter);
+            e.HasOne(x => x.SourceFile).WithMany().HasForeignKey(x => x.SourceFileId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.SourceFileId, x.RowNumber }).IsUnique();
+            e.HasIndex(x => x.RowKey);
+            e.HasIndex(x => new { x.TenantId, x.Kind, x.TransactionRef });
+            e.HasIndex(x => new { x.TenantId, x.Kind, x.SettlementRef });
+        });
+
         ApplyTenantFilter<DemoUser>(b);
         ApplyTenantFilter<AuditEvent>(b);
+        ApplyTenantFilter<SourceFile>(b);
+        ApplyTenantFilter<ColumnMapping>(b);
+        ApplyTenantFilter<SourceRow>(b);
     }
 
     /// <summary>Fail-closed tenant filter: with no tenant in context, no rows are visible.</summary>
@@ -71,13 +126,13 @@ public class ReconDbContext : DbContext
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
-    /// <summary>Audit rows are immutable, and no write may cross a tenant boundary.</summary>
+    /// <summary>Append-only records are immutable, and no write may cross a tenant boundary.</summary>
     private void Guard()
     {
         foreach (var entry in ChangeTracker.Entries())
         {
-            if (entry.Entity is AuditEvent && entry.State is EntityState.Modified or EntityState.Deleted)
-                throw new InvalidOperationException("AuditEvent rows are append-only and cannot be modified or deleted.");
+            if (entry.Entity is IAppendOnly && entry.State is EntityState.Modified or EntityState.Deleted)
+                throw new InvalidOperationException($"{entry.Metadata.ClrType.Name} rows are append-only and cannot be modified or deleted.");
 
             if (entry.Entity is not ITenantScoped scoped || entry.State is not (EntityState.Added or EntityState.Modified)) continue;
 

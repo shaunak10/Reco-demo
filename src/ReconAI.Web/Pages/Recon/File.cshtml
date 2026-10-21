@@ -1,0 +1,154 @@
+@page "{id:int}"
+@using ReconAI.Core.Importing
+@using ReconAI.Data
+@model FileModel
+@{
+    var f = Model.Source!;
+    ViewData["Title"] = $"File #{f.Id}";
+    var imported = f.Status == SourceFileStatus.Imported;
+    string Tab(string key) => Model.Show == key ? "tab is-active" : "tab";
+}
+
+<nav class="crumbs" aria-label="Breadcrumb"><a asp-page="New">New reconciliation</a> <span aria-hidden="true">/</span> <span>File #@f.Id</span></nav>
+
+@if (Model.Notice is not null)
+{
+    <div class="alert alert-ok" role="status">@Model.Notice</div>
+}
+@if (Model.Error is not null)
+{
+    <div class="alert alert-bad" role="alert">@Model.Error</div>
+}
+
+<section class="card">
+    <div class="card-head">
+        <h3 class="file-name" title="@f.OriginalFileName">@f.OriginalFileName</h3>
+        @if (f.IsVoided) { <span class="chip chip-neutral">Voided</span> }
+        else if (imported) { <span class="chip chip-ok">Imported</span> }
+        else { <span class="chip chip-warn">Needs mapping</span> }
+    </div>
+    <div class="facts">
+        <div><span class="fact-label">Source</span><strong>@SourceSchema.Label(f.Kind)</strong></div>
+        <div><span class="fact-label">Format</span><strong>@f.Format.ToUpperInvariant()@(f.SheetName is null ? "" : $" - sheet '{f.SheetName}'") &middot; @Fmt.Bytes(f.SizeBytes)</strong></div>
+        <div><span class="fact-label">Uploaded</span><strong>@f.UploadedByEmail</strong><span class="muted small"><time datetime="@f.UploadedUtc.ToString("o")">@Fmt.Utc(f.UploadedUtc)</time></span></div>
+        <div><span class="fact-label">SHA-256 of the original file</span><code class="wrap">@f.Sha256</code></div>
+    </div>
+    @if (f.IsVoided)
+    {
+        <p class="muted small">Voided by @f.VoidedByEmail on @(f.VoidedUtc is { } v ? Fmt.Utc(v) : ""): @f.VoidReason</p>
+    }
+    @if (!imported && !f.IsVoided)
+    {
+        <p><a class="btn btn-primary" asp-page="Mapping" asp-route-id="@f.Id">Map columns and import</a></p>
+    }
+</section>
+
+@if (imported)
+{
+    <section class="stats-row" aria-label="Import totals">
+        <div class="stat"><span class="stat-value">@f.DataRowCount</span><span class="stat-label">data rows read@(f.BlankRowsSkipped > 0 ? $" ({f.BlankRowsSkipped} blank skipped)" : "")</span></div>
+        <div class="stat stat-ok"><span class="stat-value">@Model.Totals.ValidRows</span><span class="stat-label">valid rows</span></div>
+        <div class="stat @(Model.Totals.RejectedRows > 0 ? "stat-bad" : "")"><span class="stat-value">@Model.Totals.RejectedRows</span><span class="stat-label">rejected rows</span></div>
+        <div class="stat"><span class="stat-value">@Fmt.Money(Money.FromPaise(Model.Totals.AmountPaise))</span><span class="stat-label">sum of valid amounts (INR, exact SQL total)</span></div>
+        @if (f.Kind == SourceKind.Gateway)
+        {
+            <div class="stat"><span class="stat-value">@Fmt.Money(Money.FromPaise(Model.Totals.FeesPaise))</span><span class="stat-label">sum of fees (INR)</span></div>
+        }
+    </section>
+
+    @if (Model.Mapping is not null)
+    {
+        <section class="card">
+            <h3>Confirmed mapping</h3>
+            <p class="muted small">Confirmed by @Model.Mapping.ConfirmedByEmail on @Fmt.Utc(Model.Mapping.ConfirmedUtc) (@Model.Mapping.Origin).</p>
+            <div class="table-wrap">
+                <table class="table table-compact">
+                    <thead><tr><th scope="col">Column heading</th><th scope="col">Canonical field</th></tr></thead>
+                    <tbody>
+                        @foreach (var (heading, field) in Model.Assignments)
+                        {
+                            <tr><td><code>@heading</code></td><td>@(field.Length == 0 ? "(ignored)" : Enum.TryParse<CanonicalField>(field, out var cf) ? SourceSchema.Label(cf) : field)</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+
+    <section class="card">
+        <div class="card-head">
+            <h3>Rows</h3>
+            <nav class="tabs" aria-label="Filter rows">
+                <a class="@Tab("all")" asp-route-show="all" asp-route-p="1">All (@(Model.Totals.ValidRows + Model.Totals.RejectedRows))</a>
+                <a class="@Tab("valid")" asp-route-show="valid" asp-route-p="1">Valid (@Model.Totals.ValidRows)</a>
+                <a class="@Tab("rejected")" asp-route-show="rejected" asp-route-p="1">Rejected (@Model.Totals.RejectedRows)</a>
+            </nav>
+        </div>
+        <div class="table-wrap">
+            <table class="table table-compact rows-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="num">Row</th><th scope="col">Row key</th><th scope="col">Status</th>
+                        <th scope="col">Transaction ref</th><th scope="col">Settlement ref</th>
+                        <th scope="col" class="num">Amount</th><th scope="col" class="num">Fees</th><th scope="col">Date</th><th scope="col">Original cells</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        var raw = FileModel.RawCells(r);
+                        <tr class="@(r.ImportStatus == RowImportStatus.Rejected ? "is-rejected" : "")">
+                            <td class="num">@r.RowNumber</td>
+                            <td><code>@r.RowKey</code></td>
+                            <td>
+                                @if (r.ImportStatus == RowImportStatus.Valid) { <span class="chip chip-ok">Valid</span> }
+                                else { <span class="chip chip-bad">Rejected</span><div class="small reject-reason">@r.RejectReason</div> }
+                            </td>
+                            <td>@r.TransactionRef</td>
+                            <td>@r.SettlementRef</td>
+                            <td class="num">@Fmt.Money(r.Amount)</td>
+                            <td class="num">@Fmt.Money(r.Fees)</td>
+                            <td class="nowrap">@r.TxnDate?.ToString("yyyy-MM-dd")</td>
+                            <td>
+                                <details>
+                                    <summary>show</summary>
+                                    <dl class="raw">
+                                        @for (var i = 0; i < Model.Headers.Count && i < raw.Count; i++)
+                                        {
+                                            <dt>@Model.Headers[i]</dt><dd>@(raw[i].Length == 0 ? "(empty)" : raw[i])</dd>
+                                        }
+                                    </dl>
+                                </details>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Rows.Count == 0)
+                    {
+                        <tr><td colspan="9" class="muted">No rows in this view.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.Pages > 1)
+        {
+            <nav class="pager" aria-label="Pages">
+                @if (Model.P > 1) { <a class="btn btn-ghost btn-sm" asp-route-show="@Model.Show" asp-route-p="@(Model.P - 1)">Previous</a> }
+                <span class="muted small">Page @Model.P of @Model.Pages (@Model.TotalRows rows)</span>
+                @if (Model.P < Model.Pages) { <a class="btn btn-ghost btn-sm" asp-route-show="@Model.Show" asp-route-p="@(Model.P + 1)">Next</a> }
+            </nav>
+        }
+    </section>
+}
+
+@if (!f.IsVoided)
+{
+    <section class="card danger-zone">
+        <h3>Void this file</h3>
+        <p class="muted small">Use this if the wrong file or mapping was imported. Voiding keeps the rows on record for audit but removes the file from use, and frees the checksum so a corrected copy can be uploaded again.</p>
+        <form method="post" asp-page-handler="Void" asp-route-id="@f.Id" class="inline-form">
+            <label for="void-reason" class="visually-hidden">Reason for voiding</label>
+            <input id="void-reason" name="reason" type="text" minlength="3" maxlength="200" placeholder="Reason (required)" required />
+            <button type="submit" class="btn btn-danger">Void file</button>
+        </form>
+    </section>
+}

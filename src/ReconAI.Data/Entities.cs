@@ -8,6 +8,11 @@ public interface ITenantScoped
     int TenantId { get; set; }
 }
 
+/// <summary>Marks records that may be inserted but never updated or deleted (audit trail, imported rows, confirmed mappings).</summary>
+public interface IAppendOnly
+{
+}
+
 /// <summary>Tells the data layer which tenant the current request belongs to. Null means "no tenant" and fails closed.</summary>
 public interface ITenantContext
 {
@@ -47,7 +52,7 @@ public class DemoUser : ITenantScoped
 /// Append-only audit trail. <see cref="ReconDbContext"/> refuses to update or delete rows of this type.
 /// Never put source financial values or secrets in <see cref="Detail"/>.
 /// </summary>
-public class AuditEvent : ITenantScoped
+public class AuditEvent : ITenantScoped, IAppendOnly
 {
     public long Id { get; set; }
     public int TenantId { get; set; }
