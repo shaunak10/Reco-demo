@@ -1,5 +1,5 @@
-// Mapping screen: live "required fields" checklist and an AJAX dry run of the mapping against every row.
-// Values that came from the uploaded file are only ever inserted with textContent (never innerHTML).
+// Mapping screen: live "required fields" checklist, AI suggestions, and an AJAX dry run of the mapping against every row.
+// Anything that came from the uploaded file or from the AI service is only ever inserted with textContent (never innerHTML).
 (function () {
   var form = document.getElementById('mapForm');
   if (!form) return;
@@ -7,9 +7,14 @@
   var required = [];
   try { required = JSON.parse(form.getAttribute('data-required') || '[]'); } catch (e) { required = []; }
   var selects = Array.prototype.slice.call(form.querySelectorAll('select[name=Fields]'));
+  var cells = Array.prototype.slice.call(form.querySelectorAll('.ai-cell'));
   var checklist = document.getElementById('requiredList');
   var panel = document.getElementById('previewPanel');
   var previewBtn = document.getElementById('previewBtn');
+  var aiBtn = document.getElementById('aiBtn');
+  var aiStatus = document.getElementById('aiStatus');
+  var aiSummary = document.getElementById('aiSummary');
+  var inferenceInput = document.getElementById('inferenceId');
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -17,14 +22,17 @@
     if (text !== undefined && text !== null) n.textContent = text;
     return n;
   }
+  function pct(x) { return Math.round(x * 100) + '%'; }
 
+  // ---------------------------------------------------------------- required-field checklist + duplicate warning
   function refresh() {
     var counts = {};
     selects.forEach(function (s) { if (s.value) counts[s.value] = (counts[s.value] || 0) + 1; });
-    selects.forEach(function (s) {
+    selects.forEach(function (s, i) {
       var dup = s.value && counts[s.value] > 1;
       s.classList.toggle('is-dup', !!dup);
       s.title = dup ? 'This field is mapped to more than one column' : '';
+      updateEdited(i);
     });
     if (!checklist) return;
     checklist.querySelectorAll('li').forEach(function (li) {
@@ -34,8 +42,98 @@
     });
   }
   selects.forEach(function (s) { s.addEventListener('change', refresh); });
-  refresh();
 
+  // ---------------------------------------------------------------- AI suggestions
+  function updateEdited(i) {
+    var s = selects[i], cell = cells[i];
+    if (!cell || s.dataset.aiField === undefined) return;
+    var edited = s.value !== s.dataset.aiField;
+    cell.classList.toggle('is-edited', edited);
+    var note = cell.querySelector('.ai-edited');
+    if (edited && !note) {
+      note = el('span', 'ai-edited', 'You changed this (AI suggested: ' + (s.dataset.aiLabel || 'ignore') + ')');
+      cell.appendChild(note);
+    } else if (!edited && note) {
+      note.remove();
+    }
+  }
+
+  function renderCell(sug) {
+    var cell = cells[sug.columnIndex];
+    if (!cell) return;
+    cell.replaceChildren();
+    cell.className = 'ai-cell band-' + sug.band;
+    var line = el('div', 'ai-line');
+    line.appendChild(el('span', 'ai-chip', 'AI ' + pct(sug.confidence) + ' ' + sug.band));
+    line.appendChild(el('span', 'ai-what', 'suggests: ' + sug.fieldLabel));
+    cell.appendChild(line);
+    var bar = el('span', 'conf-bar'); bar.setAttribute('aria-hidden', 'true');
+    var fill = el('span', 'conf-fill'); fill.style.width = pct(sug.confidence); bar.appendChild(fill);
+    cell.appendChild(bar);
+    if (sug.reasons.length || sug.alternatives.length) {
+      var d = el('details', 'ai-why');
+      d.appendChild(el('summary', '', 'why?'));
+      var ul = el('ul', 'reasons');
+      sug.reasons.forEach(function (r) { ul.appendChild(el('li', '', r)); });
+      d.appendChild(ul);
+      if (sug.alternatives.length) {
+        d.appendChild(el('p', 'small muted', 'Also considered: ' + sug.alternatives.map(function (a) { return a.fieldLabel + ' ' + pct(a.confidence); }).join(', ')));
+      }
+      cell.appendChild(d);
+    }
+  }
+
+  function setStatus(text, tone) {
+    aiStatus.textContent = text;
+    aiStatus.className = 'small ' + (tone === 'warn' ? 'is-warn' : 'muted');
+  }
+
+  function applyAi(result) {
+    if (!result.available) {
+      setStatus(result.message || 'The AI service is not available. Map the columns manually.', 'warn');
+      aiSummary.hidden = true;
+      return;
+    }
+    if (inferenceInput) inferenceInput.value = result.inferenceId;
+    var bands = { high: 0, medium: 0, low: 0 };
+    result.suggestions.forEach(function (s) {
+      var sel = selects[s.columnIndex];
+      if (!sel) return;
+      sel.value = s.field || '';
+      sel.dataset.aiField = s.field || '';
+      sel.dataset.aiLabel = s.fieldLabel;
+      bands[s.band] = (bands[s.band] || 0) + 1;
+      renderCell(s);
+    });
+    refresh();
+    setStatus('Suggested by ' + result.model.name + ' v' + result.model.version + ' in ' + result.latencyMs + ' ms. Review every row: nothing is saved until you press "Confirm mapping and import".');
+    aiSummary.replaceChildren();
+    aiSummary.appendChild(el('span', 'chip chip-ok', bands.high + ' high confidence'));
+    aiSummary.appendChild(el('span', 'chip chip-info', bands.medium + ' medium'));
+    aiSummary.appendChild(el('span', 'chip ' + (bands.low ? 'chip-warn' : 'chip-neutral'), bands.low + ' low: check these yourself'));
+    if (result.problems && result.problems.length) {
+      aiSummary.appendChild(el('span', 'chip chip-warn', result.problems.length + ' suggestion(s) were discarded by validation'));
+    }
+    aiSummary.hidden = false;
+  }
+
+  function suggest() {
+    aiBtn.disabled = true;
+    var original = aiBtn.textContent;
+    aiBtn.textContent = 'Asking the AI...';
+    setStatus('Asking the local AI model...');
+    fetch(form.getAttribute('data-suggest-url'), { method: 'POST', body: new FormData(form), credentials: 'same-origin' })
+      .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      .then(applyAi)
+      .catch(function () { setStatus('The suggestion request failed. You can map the columns manually.', 'warn'); })
+      .finally(function () { aiBtn.disabled = false; aiBtn.textContent = 'Suggest again'; });
+  }
+  if (aiBtn) aiBtn.addEventListener('click', suggest);
+
+  refresh();
+  if (aiBtn && form.getAttribute('data-auto-suggest') === 'true') suggest();
+
+  // ---------------------------------------------------------------- dry-run preview
   function table(columns, rows) {
     var wrap = el('div', 'table-wrap');
     var t = el('table', 'table table-compact');

@@ -1,0 +1,46 @@
+{
+  "_comment": "HELD-OUT evaluation headings, written separately from the training corpus. Never used for training or tuning; tests assert zero overlap (after normalisation) with ai/data/header_corpus.json. IGNORE entries carry the generator group used to build realistic values.",
+  "TransactionRef": [
+    "Trxn_ID", "TxnRef", "Order Ref No", "Merchant Txn Ref", "Payment Order ID", "pg_txn_reference", "Customer Ref",
+    "Order Identifier", "Recharge Txn ID", "Sale Ref", "Booking No", "Bill No", "Trans. Reference", "Ref ID",
+    "Reference", "Txn Reference No.", "Order #", "Pmt Ref No."
+  ],
+  "SettlementRef": [
+    "UTR No.", "Bank Ref", "bank_reference_no", "Settlement Ref No", "Payout Ref No", "NEFT/IMPS UTR", "Remittance Ref",
+    "Payout Batch No", "Transfer Ref No", "Bank Txn Id", "UTR Reference Number", "Batch No", "Credit UTR", "Settlement No.",
+    "Bank UTR Ref", "IMPS Ref No", "Payout Reference ID", "UTR"
+  ],
+  "Amount": [
+    "Amt", "Gross Amt (INR)", "Total Value", "Amount (INR)", "Txn Value", "Paid Amt", "Collected", "Order Total Amount",
+    "Received Amount", "Recharge Amt", "Cr. Amount", "Amount Credited (Rs)", "Deposit Amt", "Sales Value", "Invoice Total",
+    "Billed Amount", "Gross Collected Amount", "Payment Value"
+  ],
+  "Fees": [
+    "Fee (INR)", "PGW Fee", "Gateway Charge", "M.D.R", "Processing Fee Amt", "Charges Deducted", "Platform Charges",
+    "MDR + GST", "Gateway Commission", "TDR Amt", "Fee Amount (Rs)", "Transaction Charges", "Gateway Deduction", "Total Fees",
+    "Fees & Taxes", "Service Charges", "Payment Gateway Fee", "Commission Amt"
+  ],
+  "TxnDate": [
+    "Txn Date & Time", "Txn Timestamp", "Payment Made On", "Created Timestamp", "Order Date Time", "Recharge Dt",
+    "Credit Posting Date", "Posting Dt", "Sold On", "Booking Dt", "Credit Dt.", "Date", "Trxn Date", "Dt of Txn",
+    "Date of Txn", "Payment Timestamp", "Order Created Date", "Txn Date"
+  ],
+  "Currency": [
+    "Ccy Code", "Cur Code", "Txn Ccy", "ISO Currency Code", "Currency (ISO)", "Curr.", "Currency Used", "Money Currency"
+  ],
+  "Status": [
+    "Pay Status", "Pmt Status", "Recharge Outcome", "Txn Outcome", "Final Result", "Gateway Response Status",
+    "Order Status Code", "Transaction Result", "Payment Result", "Fulfilment State", "Status Flag", "Txn State Desc",
+    "Delivery Outcome", "Capture Status"
+  ],
+  "IGNORE": [
+    {"h": "Cust. Name", "g": "name"}, {"h": "Subscriber Mobile", "g": "mobile"}, {"h": "Remarks / Notes", "g": "narration"},
+    {"h": "Opening Bal", "g": "balance"}, {"h": "Net Settlement Amt", "g": "net_money"}, {"h": "Recharge Plan Name", "g": "plan"},
+    {"h": "Operator Circle", "g": "text_short"}, {"h": "Serial #", "g": "serial"}, {"h": "Payment Mode Used", "g": "mode"},
+    {"h": "Issuer", "g": "mode"}, {"h": "IFSC Number", "g": "mode"}, {"h": "Narration Text", "g": "narration"},
+    {"h": "Particulars Text", "g": "narration"}, {"h": "Settlement Due On", "g": "other_date"}, {"h": "Cashback Given", "g": "tax_money"},
+    {"h": "Refund Amt", "g": "tax_money"}, {"h": "Closing Bal", "g": "balance"}, {"h": "Debit Amt (Rs)", "g": "debit_zero"},
+    {"h": "GST Amt", "g": "tax_money"}, {"h": "Customer Email ID", "g": "email"}, {"h": "Auth Reference Code", "g": "code"},
+    {"h": "Device Info", "g": "ip"}
+  ]
+}

@@ -27,7 +27,11 @@
 {
     <form method="post" id="mapForm" asp-page-handler="Confirm" asp-route-id="@source.Id"
           data-preview-url="@Url.Page("/Recon/Mapping", "Preview", new { id = source.Id })"
+          data-suggest-url="@Url.Page("/Recon/Mapping", "Suggest", new { id = source.Id })"
+          data-auto-suggest="@(Model.Proposal.SavedFields is null && Model.InferenceId is null ? "true" : "false")"
           data-required='@System.Text.Json.JsonSerializer.Serialize(Model.Mandatory.Select(f => new { name = f.ToString(), label = SourceSchema.Label(f) }))'>
+
+        <input type="hidden" name="InferenceId" id="inferenceId" value="@Model.InferenceId" />
 
         @if (Model.Proposal.SavedFields is not null)
         {
@@ -38,9 +42,21 @@
         else
         {
             <div class="banner" role="note">
-                Choose, for each column, which canonical field it feeds. Fields marked <span class="req">required</span> must be mapped. Columns you leave as "ignore" are kept in the stored row but not used for matching. AI suggestions arrive in Step 4.
+                Choose, for each column, which canonical field it feeds. Fields marked <span class="req">required</span> must be mapped. Columns you leave as "ignore" are kept in the stored row but not used for matching.
             </div>
         }
+
+        <section class="card ai-panel" id="aiPanel" aria-label="AI column suggestions">
+            <div class="ai-head">
+                <span class="ai-badge" aria-hidden="true">AI</span>
+                <div class="ai-title">
+                    <strong>AI column suggestions</strong>
+                    <span class="muted small" id="aiStatus">A local model can suggest how to map these columns. It only suggests: nothing is saved until you press "Confirm mapping and import".</span>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" id="aiBtn">Suggest with AI</button>
+            </div>
+            <div class="ai-summary" id="aiSummary" hidden></div>
+        </section>
 
         <section class="card">
             <h3>Map the columns</h3>
@@ -70,6 +86,7 @@
                                             <option value="@f" selected="@(chosen == f.ToString())" title="@SourceSchema.Describe(f)">@SourceSchema.Label(f)@(Model.Mandatory.Contains(f) ? " (required)" : "")</option>
                                         }
                                     </select>
+                                    <div class="ai-cell" data-col="@i"></div>
                                 </td>
                             </tr>
                         }

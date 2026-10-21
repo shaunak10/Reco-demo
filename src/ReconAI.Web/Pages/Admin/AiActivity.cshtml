@@ -1,0 +1,57 @@
+@page
+@using ReconAI.Core.Ai
+@model AiActivityModel
+@{
+    ViewData["Title"] = "AI activity";
+}
+
+<section class="stats-row" aria-label="AI summary">
+    <div class="stat"><span class="stat-value">@Model.TotalCalls</span><span class="stat-label">AI calls (@Model.OkCalls succeeded)</span></div>
+    <div class="stat"><span class="stat-value">@(Model.MedianLatencyMs is { } m ? $"{m:0} ms" : "n/a")</span><span class="stat-label">median response time</span></div>
+    <div class="stat"><span class="stat-value">@Model.AiAssistedMappings of @Model.MappingsConfirmed</span><span class="stat-label">confirmed mappings were AI-assisted</span></div>
+    <div class="stat stat-ok"><span class="stat-value">@(Model.AcceptanceRate is { } r ? $"{r:P0}" : "n/a")</span><span class="stat-label">of AI suggestions accepted unchanged (@Model.Accepted of @Model.Suggested)</span></div>
+</section>
+
+<section class="card">
+    <h3>What is AI here, and what is not</h3>
+    <ul class="plain-list">
+        <li><strong>AI (a trained model):</strong> the column ranker scores every column against the canonical fields. It runs locally in the Python service; model names and versions are logged below.</li>
+        <li><strong>Deterministic, not AI:</strong> the one-to-one assignment, per-source rules, confidence bands, and all validation of the AI's answer in this application.</li>
+        <li><strong>Never AI:</strong> saving a mapping, importing rows, approving anything. An operator confirms every mapping, and an AI failure never blocks reconciliation.</li>
+    </ul>
+    @if (Model.ModelVersions.Count > 0)
+    {
+        <p class="muted small">Models seen: @string.Join(", ", Model.ModelVersions). Evaluation results: <code>docs/results/step4_column_mapping.md</code>.</p>
+    }
+</section>
+
+<section class="card">
+    <h3>Recent AI calls <span class="muted small">&middot; no sample values are recorded</span></h3>
+    @if (Model.Calls.Count == 0)
+    {
+        <p class="muted">No AI calls yet. Upload a file and open its column mapping to see the first suggestion.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table table-compact">
+                <thead><tr><th scope="col">When (UTC)</th><th scope="col">Who</th><th scope="col">Task</th><th scope="col">File</th><th scope="col">Model</th><th scope="col">Status</th><th scope="col" class="num">Time</th><th scope="col">Input</th></tr></thead>
+                <tbody>
+                    @foreach (var c in Model.Calls)
+                    {
+                        <tr>
+                            <td class="nowrap"><time datetime="@c.CreatedUtc.ToString("o")">@c.CreatedUtc.ToString("dd MMM HH:mm:ss")</time></td>
+                            <td>@c.UserEmail</td>
+                            <td>@c.Task</td>
+                            <td>@(c.SourceFileId is { } f ? $"#{f}" : "")</td>
+                            <td>@(c.ModelName.Length == 0 ? "n/a" : $"{c.ModelName} v{c.ModelVersion}")</td>
+                            <td><span class="chip @(c.Status == AiCallStatus.Ok ? "chip-ok" : "chip-warn")" title="@c.Detail">@c.Status</span></td>
+                            <td class="num">@c.LatencyMs ms</td>
+                            <td class="muted">@c.InputSummary</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

@@ -1,19 +1,38 @@
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using ReconAI.Core.Importing;
 using ReconAI.Core.Security;
 using ReconAI.Data;
+using ReconAI.Web.Services;
 
 namespace ReconAI.Tests.Support;
 
 /// <summary>Hosts the real web app against a throw-away SQLite file, so each test class starts from a clean seeded database.</summary>
 public sealed class ReconWebFactory : WebApplicationFactory<Program>
 {
+    private readonly string _aiBaseUrl;
+
+    /// <param name="ai">Replaces the AI client with a fake. When null the real client is used, pointed at a closed port (AI "not running").</param>
+    /// <param name="aiBaseUrl">Where the real AI client should connect; default is a closed port so tests never depend on the Python service.</param>
+    public ReconWebFactory() : this(null)
+    {
+    }
+
+    internal ReconWebFactory(FakeAiMappingClient? ai, string? aiBaseUrl = null)
+    {
+        Ai = ai;
+        _aiBaseUrl = aiBaseUrl ?? "http://127.0.0.1:9";
+    }
+
+    public FakeAiMappingClient? Ai { get; }
+
     private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"reconai-test-{Guid.NewGuid():N}.db");
     private readonly string _uploads = Path.Combine(Path.GetTempPath(), $"reconai-uploads-{Guid.NewGuid():N}");
 
@@ -21,7 +40,16 @@ public sealed class ReconWebFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Development");
         builder.UseSetting("ConnectionStrings:Default", $"Data Source={_dbPath}");
-        builder.UseSetting("Ai:BaseUrl", "http://127.0.0.1:9");   // closed port: tests never depend on the AI service
+        builder.UseSetting("Ai:BaseUrl", _aiBaseUrl);
+        builder.UseSetting("Ai:MappingTimeoutSeconds", "20");
+        if (Ai is not null)
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IAiMappingClient>();
+                services.AddSingleton<IAiMappingClient>(Ai);
+            });
+        }
         builder.UseSetting("Storage:UploadsPath", _uploads);
     }
 
@@ -124,6 +152,26 @@ public static class WebTestHelpers
         var pairs = fields.Select(f => new KeyValuePair<string, string>("Fields", f))
             .Append(new KeyValuePair<string, string>("__RequestVerificationToken", token));
         return await client.PostAsync($"/Recon/Mapping/{fileId}?handler={handler}", new FormUrlEncodedContent(pairs));
+    }
+
+    /// <summary>Calls the mapping page's AJAX Suggest handler and returns the parsed JSON.</summary>
+    public static async Task<System.Text.Json.JsonDocument> SuggestAsync(this HttpClient client, int fileId)
+    {
+        var token = await client.TokenFromAsync($"/Recon/Mapping/{fileId}");
+        var res = await client.PostAsync($"/Recon/Mapping/{fileId}?handler=Suggest",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        res.EnsureSuccessStatusCode();
+        return System.Text.Json.JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>Confirm with an explicit AI inference id (or none).</summary>
+    public static async Task<HttpResponseMessage> ConfirmWithAiAsync(this HttpClient client, int fileId, IEnumerable<string> fields, long? inferenceId)
+    {
+        var token = await client.TokenFromAsync($"/Recon/Mapping/{fileId}");
+        var pairs = fields.Select(f => new KeyValuePair<string, string>("Fields", f))
+            .Append(new KeyValuePair<string, string>("InferenceId", inferenceId?.ToString() ?? ""))
+            .Append(new KeyValuePair<string, string>("__RequestVerificationToken", token));
+        return await client.PostAsync($"/Recon/Mapping/{fileId}?handler=Confirm", new FormUrlEncodedContent(pairs));
     }
 
     public static int FileIdFrom(this HttpResponseMessage res) => int.Parse(res.Location().Split('?')[0].Split('/').Last());

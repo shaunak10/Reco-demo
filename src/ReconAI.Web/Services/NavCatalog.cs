@@ -15,6 +15,7 @@ public static class NavCatalog
         new("API connections",    "Integrations",   "plug",   null,                 8),
         new("Alerts",             "Integrations",   "bell",   null,                 9),
         new("Rule approvals",     "Administration", "shield", "/Admin/Approvals",   2, AdminOnly: true),
+        new("AI activity",        "Administration", "spark",  "/Admin/AiActivity",  4, AdminOnly: true),
         new("Audit log",          "Administration", "list",   "/Admin/Audit",       2, AdminOnly: true),
     ];
 
@@ -30,5 +31,6 @@ public static class NavCatalog
         ["shield"]  = "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9 12l2 2 4-4",
         ["list"]    = "M8 6h12 M8 12h12 M8 18h12 M4 6h.01 M4 12h.01 M4 18h.01",
         ["logout"]  = "M10 4H5v16h5 M15 8l4 4-4 4 M9 12h10",
+        ["spark"]   = "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M18 16l.8 2.2L21 19l-2.2.8L18 22l-.8-2.2L15 19l2.2-.8z",
     };
 }

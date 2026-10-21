@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using ReconAI.Core.Ai;
 using ReconAI.Core.Importing;
 using ReconAI.Data;
 
@@ -30,6 +31,20 @@ public sealed record PreviewResult(
 
 public sealed record ConfirmOutcome(bool Ok, string? Error, int Valid, int Rejected);
 
+public sealed record SuggestOutcome(
+    bool Available,
+    string Message,
+    long? InferenceId,
+    AiModelInfo? Model,
+    int LatencyMs,
+    IReadOnlyList<AiSuggestion> Suggestions,
+    IReadOnlyList<string> Problems);
+
+/// <summary>Compact stored form of one validated suggestion (no sample values, no reasons).</summary>
+public sealed record StoredSuggestion(int I, string? F, double C);
+
+public sealed record Provenance(string Origin, long? InferenceId, int Suggested, int Accepted, int Changed);
+
 public sealed class FileTotals
 {
     public int ValidRows { get; set; }
@@ -45,12 +60,16 @@ public sealed class FileTotals
 public sealed class ImportService(
     ReconDbContext db,
     AuditLog audit,
+    IAiMappingClient ai,
     IWebHostEnvironment env,
     IConfiguration config,
     TimeProvider clock,
     ILogger<ImportService> log)
 {
     public static readonly ImportLimits Limits = new();
+
+    /// <summary>Sample values per column that are shown to the local model for profiling.</summary>
+    public const int AiSampleRows = 30;
 
     private string UploadsRoot
     {
@@ -214,6 +233,80 @@ public sealed class ImportService(
         return (rows, total);
     }
 
+    // ------------------------------------------------------------------ AI suggestions
+    /// <summary>
+    /// Asks the local model to propose a mapping. The result is only ever a suggestion: nothing is saved as a mapping and no
+    /// row is imported until the operator confirms. Every call is logged (model, status, latency; never the sample values).
+    /// </summary>
+    public async Task<SuggestOutcome> SuggestAsync(SourceFile file, ClaimsPrincipal user, CancellationToken ct)
+    {
+        TabularFile parsed;
+        try
+        {
+            (parsed, _) = await ReadStoredAsync(file, ct);
+        }
+        catch (ImportException ex)
+        {
+            return new SuggestOutcome(false, ex.Message, null, null, 0, [], []);
+        }
+
+        var columns = parsed.Headers
+            .Select((h, i) => new AiColumnSample(h, parsed.Rows.Take(AiSampleRows).Select(r => Truncate(r.Cells[i], 100)).ToList()))
+            .ToList();
+
+        var result = await ai.SuggestMappingAsync(file.Kind, columns, ct);
+        var validated = result.Value;
+        var stored = validated?.Suggestions.Select(s => new StoredSuggestion(s.ColumnIndex, s.Field?.ToString(), Math.Round(s.Confidence, 4))).ToList() ?? [];
+
+        var entry = new AIInferenceLog
+        {
+            TenantId = file.TenantId,
+            UserId = UserIdOf(user),
+            UserEmail = user.FindFirstValue(ClaimTypes.Email) ?? "",
+            Task = AiTask.ColumnMapping,
+            SourceFileId = file.Id,
+            ModelName = validated?.Model.Name ?? "",
+            ModelVersion = validated?.Model.Version ?? "",
+            Status = result.Status,
+            LatencyMs = result.LatencyMs,
+            InputSummary = $"{columns.Count} columns, up to {AiSampleRows} sample values each",
+            OutputJson = JsonSerializer.Serialize(stored),
+            Detail = Truncate(result.Ok ? string.Join(" ", validated!.Problems) : result.Message, 400),
+            CreatedUtc = clock.GetUtcNow().UtcDateTime,
+        };
+        db.AIInferenceLogs.Add(entry);
+        audit.Add(user, "AiMappingSuggested", nameof(SourceFile), file.Id.ToString(),
+            result.Ok ? $"{result.Status}: {columns.Count} columns, model {validated!.Model.Name} v{validated.Model.Version}, {result.LatencyMs} ms" : $"{result.Status}: {result.Message}");
+        await db.SaveChangesAsync(ct);
+
+        return result.Ok
+            ? new SuggestOutcome(true, "", entry.Id, validated!.Model, result.LatencyMs, validated.Suggestions, validated.Problems)
+            : new SuggestOutcome(false, result.Message, entry.Id, null, result.LatencyMs, [], []);
+    }
+
+    /// <summary>How a confirmed mapping relates to the AI suggestions the operator saw (never trusts a foreign inference id).</summary>
+    private async Task<Provenance> ProvenanceAsync(SourceFile file, FieldMap map, long? inferenceId, CancellationToken ct)
+    {
+        var manual = new Provenance("Manual", null, 0, 0, 0);
+        if (inferenceId is null) return manual;
+
+        var entry = await db.AIInferenceLogs.FirstOrDefaultAsync(l =>
+            l.Id == inferenceId && l.SourceFileId == file.Id && l.Task == AiTask.ColumnMapping && l.Status == AiCallStatus.Ok, ct);
+        if (entry is null) return manual;
+
+        var suggestions = JsonSerializer.Deserialize<List<StoredSuggestion>>(entry.OutputJson) ?? [];
+        int suggested = 0, accepted = 0, changed = 0;
+        foreach (var s in suggestions)
+        {
+            if (s.I < 0 || s.I >= map.ByColumn.Count) continue;
+            var final = map.ByColumn[s.I]?.ToString();
+            if (s.F is not null) { suggested++; if (final == s.F) accepted++; }
+            if (final != s.F) changed++;
+        }
+        var origin = changed == 0 ? "AI-assisted (accepted as suggested)" : $"AI-assisted (operator changed {changed} of {map.ByColumn.Count} columns)";
+        return new Provenance(origin, entry.Id, suggested, accepted, changed);
+    }
+
     // ------------------------------------------------------------------ mapping preview and confirmation
     public async Task<PreviewResult> PreviewAsync(SourceFile file, IReadOnlyList<string?> fields, CancellationToken ct)
     {
@@ -236,7 +329,7 @@ public sealed class ImportService(
     private static PreviewRow ToPreview(CanonicalRow r, string? problem) =>
         new(r.RowNumber, r.RowKey, r.TransactionRef, r.SettlementRef, Fmt.Money(r.Amount), Fmt.Money(r.Fees), r.TxnDate?.ToString("yyyy-MM-dd"), r.Status, problem);
 
-    public async Task<ConfirmOutcome> ConfirmAsync(SourceFile file, IReadOnlyList<string?> fields, ClaimsPrincipal user, CancellationToken ct)
+    public async Task<ConfirmOutcome> ConfirmAsync(SourceFile file, IReadOnlyList<string?> fields, ClaimsPrincipal user, long? inferenceId, CancellationToken ct)
     {
         if (file.IsVoided) return new ConfirmOutcome(false, "This file was voided and can no longer be imported.", 0, 0);
         if (file.Status != SourceFileStatus.AwaitingMapping) return new ConfirmOutcome(false, "This file has already been imported; nothing was imported twice.", 0, 0);
@@ -263,6 +356,8 @@ public sealed class ImportService(
                 $"No row passed validation with this mapping, so nothing was imported. {(top is null ? "" : $"Most common problem ({top.Count} rows): {top.Example}. ")}Check which column is mapped to which field.", 0, result.RejectedCount);
         }
 
+        var provenance = await ProvenanceAsync(file, map, inferenceId, ct);
+
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         try
         {
@@ -274,7 +369,11 @@ public sealed class ImportService(
                 Kind = file.Kind,
                 HeaderSignature = Canonicalizer.HeaderSignature(headers),
                 MappingJson = JsonSerializer.Serialize(map.ToHeaderDictionary(headers)),
-                Origin = "Manual",
+                Origin = provenance.Origin,
+                AiInferenceId = provenance.InferenceId,
+                AiSuggestedCount = provenance.Suggested,
+                AiAcceptedCount = provenance.Accepted,
+                AiChangedColumns = provenance.Changed,
                 ConfirmedByUserId = UserIdOf(user),
                 ConfirmedByEmail = user.FindFirstValue(ClaimTypes.Email) ?? "",
                 ConfirmedUtc = now,
@@ -310,7 +409,7 @@ public sealed class ImportService(
 
             var assignments = string.Join(", ", headers.Select((h, i) => (h, f: map.ByColumn[i])).Where(x => x.f is not null).Select(x => $"{x.h} -> {x.f}"));
             audit.Add(user, "FileImported", nameof(SourceFile), file.Id.ToString(),
-                $"{result.ValidCount} valid, {result.RejectedCount} rejected rows. Mapping confirmed: {assignments}");
+                $"{result.ValidCount} valid, {result.RejectedCount} rejected rows. Mapping confirmed ({provenance.Origin}): {assignments}");
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         }

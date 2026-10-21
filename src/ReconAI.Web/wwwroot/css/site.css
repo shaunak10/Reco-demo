@@ -286,3 +286,29 @@ details > summary { cursor: pointer; color: var(--brand); font-size: .85rem; }
 .grid > .card, .grid > .card + .card { margin-top: 0; }
 .upload-card .upload-form { margin-top: auto; }
 .upload-card .current-file { margin-top: .75rem; }
+
+/* ---------- Step 4: AI suggestions on the mapping screen ---------- */
+.ai-panel { border-color: var(--brand-soft); background: linear-gradient(135deg, var(--brand-soft), var(--surface) 55%); margin-bottom: 1rem; }
+.ai-head { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.ai-title { display: flex; flex-direction: column; min-width: 0; flex: 1 1 320px; }
+.ai-badge { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--brand); color: var(--brand-ink); font-weight: 800; font-size: .8rem; }
+.ai-summary { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .75rem; }
+.is-warn { color: var(--warn); font-weight: 600; }
+.ai-cell { margin-top: .4rem; font-size: .82rem; }
+.ai-cell:empty { display: none; }
+.ai-line { display: flex; gap: .45rem; align-items: center; flex-wrap: wrap; }
+.ai-chip { font-weight: 700; font-size: .72rem; padding: .1rem .5rem; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); white-space: nowrap; }
+.band-high .ai-chip { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.band-medium .ai-chip { background: var(--info-soft); color: var(--info); border-color: transparent; }
+.band-low .ai-chip { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.ai-what { color: var(--ink-2); }
+.conf-bar { display: block; height: 4px; border-radius: 2px; background: var(--border); margin-top: .35rem; max-width: 220px; overflow: hidden; }
+.conf-fill { display: block; height: 100%; background: var(--idle); }
+.band-high .conf-fill { background: var(--ok); }
+.band-medium .conf-fill { background: var(--info); }
+.band-low .conf-fill { background: var(--warn); }
+.ai-why { margin-top: .3rem; }
+.ai-why .reasons { margin: .3rem 0 .2rem; padding-left: 1.1rem; color: var(--ink-2); }
+.ai-edited { display: block; margin-top: .3rem; color: var(--warn); font-weight: 600; }
+.ai-cell.is-edited .ai-chip { opacity: .6; text-decoration: line-through; }
+.mapping-table tr:has(.band-low) td { background: color-mix(in srgb, var(--warn-soft) 40%, transparent); }

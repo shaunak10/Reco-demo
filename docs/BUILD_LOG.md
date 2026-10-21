@@ -137,3 +137,60 @@ All other behaviour follows the existing rules: signed-in only, antiforgery on e
 | Error feedback | 9 bad-file cases (wrong type, empty, 6 MB, fake xlsx, binary, no data, duplicate/blank headings) each give a specific message, store nothing and are audited |
 | Mutation check | With row keys made non-deterministic and the 2-decimal rule disabled, 8 tests fail; code restored |
 | Manual browser check | Upload -> mapping (live required-field checklist, AJAX check: 61 valid / 0 rejected) -> confirm -> file page (61 rows, total 51,189.00); duplicate refused with a clear message; no console errors; no horizontal scroll at phone width |
+
+---
+
+## Step 4 - Real Python AI field mapping
+
+### What was built
+| Area | Contents |
+|---|---|
+| `ai/app/mapper.py`, `profile.py`, `synth.py`, `text.py` | The **column ranker**: heading-similarity and value-profile features -> trained multinomial logistic regression -> one-to-one assignment, per-source masks, confidence bands, evidence-based reasons |
+| `ai/data/header_corpus.json`, `eval_headers.json` | 415 training headings and a separate held-out evaluation set (zero overlap, asserted by a test) |
+| `ai/app/main.py` | `POST /v1/map-columns`, `/health` now reports the model; capability flags are true only for what exists |
+| `ai/eval_mapping.py`, `docs/results/step4_column_mapping.md`, `ai/MODEL_CARD.md` | Honest evaluation, measured results, and a model card stating what is model-assisted and what is not |
+| `ReconAI.Core/Ai` | `AiMappingValidator`: the AI's answer is **untrusted** and re-checked (allowed fields per source, ranges, duplicates, heading match; the band is recomputed) |
+| `ReconAI.Web` | `AiMappingClient` (never throws; Ok / Unavailable / Timeout / InvalidResponse), `ImportService.SuggestAsync`, mapping-screen AI panel, **Admin > AI activity** page |
+| `ReconAI.Data` | `AIInferenceLog` (append-only; model, version, status, latency, compact outcome, **no sample values**); `ColumnMapping` now records AI provenance; migration `AiMapping` |
+
+### How it behaves
+1. After a file is uploaded, the mapping screen asks the local model for suggestions (automatically, unless a saved mapping applies; "Suggest with AI" re-runs it).
+2. Each row shows the suggested field, a confidence (high / medium / low) and a "why?" with evidence such as *"Heading closely matches the known label 'paid on' (86%)"* and *"100% of values parse as dates"*, plus the alternatives considered.
+3. The selects are pre-filled, but **nothing is saved**. The operator reviews, may change anything (the page flags "You changed this"), then confirms. The server re-validates the mapping exactly as before.
+4. The confirmed mapping records how it came about: *Manual*, *AI-assisted (accepted as suggested)* or *AI-assisted (operator changed N of M columns)*, with counts. An AI call id that belongs to another file, another tenant or a failed call is ignored.
+5. If the AI service is down, slow or returns garbage, the screen says so and the operator maps manually. Reconciliation never depends on it.
+
+### Routes and API
+| Route | Access |
+|---|---|
+| `POST /Recon/Mapping/{id}?handler=Suggest` (JSON; antiforgery; unmapped, non-voided file of the caller's tenant only) | Operator, Company Admin |
+| `GET /Admin/AiActivity` | Company Admin only |
+| AI service `POST /v1/map-columns` `{sourceKind, columns:[{header, samples[<=50]}]}` -> `{model, latencyMs, suggestions:[{columnIndex, header, field, confidence, band, reasons, alternatives}]}`; 422 on malformed input; loopback only | the web app only |
+
+### Schema (migration `AiMapping`)
+- `AIInferenceLogs(Id, TenantId, UserId, UserEmail, Task, SourceFileId, ModelName, ModelVersion, Status, LatencyMs, InputSummary, OutputJson, Detail, CreatedUtc)` - append-only
+- `ColumnMappings` + `AiInferenceId`, `AiSuggestedCount`, `AiAcceptedCount`, `AiChangedColumns`; `Origin` now describes the provenance.
+
+### Assumptions, deviations and honest limits
+- **NumPy/SciPy instead of scikit-learn.** This machine's Windows Application Control policy blocks parts of scikit-learn's compiled extensions (`sklearn.linear_model` fails to load; another module failed intermittently). I did not touch the policy. The model is a standard multinomial logistic regression fitted with SciPy's L-BFGS; the character n-gram TF-IDF is hand-written. `scikit-learn` was removed from `ai/requirements.txt`.
+- **Not an LLM, not pre-trained.** Trained at start-up (about 8 s) or loaded from a cached weights file (`ai/.cache/`, derived, git-ignored); the version is a hash of the corpus, hyper-parameters and model source.
+- **The strong numbers need context.** Training headings, evaluation headings, data generators and demo datasets were all written by one author. Results show the approach works on unseen heading *strings*; they are not evidence of accuracy on other companies' real exports. Stress tests show the model leans on headings (values alone: 47%).
+- Only 7 canonical fields; several date columns, merged cells, non-INR amounts and non-English headings are not modelled. Confidence has not been calibrated on independent real data.
+- Sample values (<= 30 per column, <= 100 characters) go to the local service only to be profiled in memory; they are not logged or stored by either side.
+- Development note: no model, corpus or feature change was made after seeing the held-out or demo results. After the first evaluation I added the stress tests and weight caching, and a unit test found one real bug (the Python money pattern accepted `12,34` as 1,234, unlike the C# importer); it was fixed, which re-versioned the model, and the headline numbers did not change.
+- The AI service runs on port **8765** (another process on this machine holds 8100).
+
+### Measured results (`ai/eval_mapping.py`, model `reconai-column-ranker` v`08592671`)
+| Measurement | Result |
+|---|---|
+| Grouped cross-validation (headings held out together) | **94.2%** column accuracy, log-loss 0.206 (5,028 columns, 415 headings) |
+| Held-out headings in fresh synthetic files | **99.6%** (3,198 columns) vs **77.3%** for a heading-only fuzzy baseline |
+| ...stress tests on the same files | headings only 82.6%; values only 47.1%; headings with a typo 97.6% |
+| ...accuracy by confidence band | high 100.0% (3,087 columns), medium 86.7% (98), low 100.0% (13) |
+| ...misses | `Sold On` -> ignore (7x), `M.D.R` -> ignore (6x), `Customer Ref` -> ignore (1x) |
+| Real demo datasets (3 scenarios x 3 sources, never trained on) | **69 of 69 columns (100%)**, all required fields right in every file |
+| Speed / memory | median 42 ms per suggestion; start-up 8 s training or under 1 s from cache; about 118 MB process memory |
+| Live end-to-end (real upload + real model + real import, `LiveAiTests`) | scenarios 1, 2 and 3: 23 of 23 columns right each, AI-accepted mappings imported 61/61/7 and 24/24/3 rows cleanly; renaming "Gross Amount" to "Customer Remarks" moved the suggestion from Amount 95% to ignore 100% |
+| Tests | **188 C# passed, 0 failed, 0 skipped** (live tests included); **41 Python passed**; dataset verifier OK |
+| Mutation check | with the validator's per-source check removed and the provenance file check removed, 4 tests fail; code restored |
+| Manual browser check | upload `pg_report.csv` (renamed headings) -> auto-suggest: 8 high / 1 medium / 0 low, all 5 required fields ticked; "why?" evidence and "You changed this" visible; confirming with a required field unmapped is refused; accepting the AI mapping imports 61 rows (gross 50,809.00, fees 908.15) and the file page shows *AI-assisted (accepted as suggested)*; Admin > AI activity lists the calls; no console errors |

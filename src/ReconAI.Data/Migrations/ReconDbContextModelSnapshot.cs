@@ -17,6 +17,74 @@ namespace ReconAI.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.13");
 
+            modelBuilder.Entity("ReconAI.Data.AIInferenceLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InputSummary")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LatencyMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ModelName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ModelVersion")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OutputJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SourceFileId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Task")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceFileId");
+
+                    b.HasIndex("TenantId", "CreatedUtc");
+
+                    b.ToTable("AIInferenceLogs");
+                });
+
             modelBuilder.Entity("ReconAI.Data.AuditEvent", b =>
                 {
                     b.Property<long>("Id")
@@ -68,6 +136,18 @@ namespace ReconAI.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AiAcceptedCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AiChangedColumns")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("AiInferenceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AiSuggestedCount")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("ConfirmedByEmail")

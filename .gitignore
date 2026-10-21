@@ -16,3 +16,5 @@ __pycache__/
 # editor/os
 .idea/
 Thumbs.db
+# derived model weights
+ai/.cache/

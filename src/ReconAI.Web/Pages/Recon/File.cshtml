@@ -61,6 +61,10 @@
         <section class="card">
             <h3>Confirmed mapping</h3>
             <p class="muted small">Confirmed by @Model.Mapping.ConfirmedByEmail on @Fmt.Utc(Model.Mapping.ConfirmedUtc) (@Model.Mapping.Origin).</p>
+            @if (Model.Mapping.AiInferenceId is not null)
+            {
+                <p class="small"><span class="chip chip-brand">AI-assisted</span> The AI suggested a field for @Model.Mapping.AiSuggestedCount column(s); the operator accepted @Model.Mapping.AiAcceptedCount unchanged and changed @Model.Mapping.AiChangedColumns of @Model.Headers.Count column(s). The operator confirmed the final mapping.</p>
+            }
             <div class="table-wrap">
                 <table class="table table-compact">
                     <thead><tr><th scope="col">Column heading</th><th scope="col">Canonical field</th></tr></thead>

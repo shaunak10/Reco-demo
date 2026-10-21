@@ -1,0 +1,771 @@
+{
+  "generated": "21 Oct 2026",
+  "model": {
+    "name": "reconai-column-ranker",
+    "version": "08592671",
+    "algorithm": "multinomial logistic regression (L-BFGS, NumPy/SciPy)",
+    "training_rows": 5028,
+    "training_files": 660,
+    "corpus_headings": 415,
+    "train_seconds": 8.06
+  },
+  "grouped_cv": {
+    "folds": 5,
+    "rows": 5028,
+    "distinct_headings": 415,
+    "accuracy": 0.9415274463007159,
+    "log_loss": 0.20618600389416777,
+    "per_field_recall": {
+      "IGNORE": 0.9403330249768732,
+      "Currency": 0.8846153846153846,
+      "Status": 0.9298245614035088,
+      "TxnDate": 0.9681818181818181,
+      "TransactionRef": 0.8954545454545455,
+      "Amount": 0.9666666666666667,
+      "SettlementRef": 0.9522727272727273,
+      "Fees": 0.9136363636363637
+    }
+  },
+  "heldout": {
+    "files": 450,
+    "columns": 3198,
+    "accuracy": 0.9956222639149468,
+    "baseline_accuracy": 0.7729831144465291,
+    "ablations": {
+      "headings_only": 0.8258286429018137,
+      "values_only": 0.4712320200125078,
+      "typos": 0.9762351469668543
+    },
+    "by_band": {
+      "high": {
+        "columns": 3087,
+        "accuracy": 0.9996760609005507
+      },
+      "medium": {
+        "columns": 98,
+        "accuracy": 0.8673469387755102
+      },
+      "low": {
+        "columns": 13,
+        "accuracy": 1.0
+      }
+    },
+    "per_field": {
+      "TxnDate": {
+        "precision": 1.0,
+        "recall": 0.9844444444444445,
+        "support": 450
+      },
+      "Amount": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 450
+      },
+      "TransactionRef": {
+        "precision": 1.0,
+        "recall": 0.9966666666666667,
+        "support": 300
+      },
+      "Status": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 237
+      },
+      "Currency": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 55
+      },
+      "SettlementRef": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 300
+      },
+      "Fees": {
+        "precision": 1.0,
+        "recall": 0.96,
+        "support": 150
+      }
+    },
+    "top_confusions": [
+      {
+        "truth": "TxnDate",
+        "predicted": null,
+        "count": 7
+      },
+      {
+        "truth": "Fees",
+        "predicted": null,
+        "count": 6
+      },
+      {
+        "truth": "TransactionRef",
+        "predicted": null,
+        "count": 1
+      }
+    ],
+    "most_missed_headings": [
+      {
+        "heading": "Sold On",
+        "truth": "TxnDate",
+        "predicted": null,
+        "times": 7
+      },
+      {
+        "heading": "M.D.R",
+        "truth": "Fees",
+        "predicted": null,
+        "times": 6
+      },
+      {
+        "heading": "Customer Ref",
+        "truth": "TransactionRef",
+        "predicted": null,
+        "times": 1
+      }
+    ]
+  },
+  "demo": {
+    "scenarios": {
+      "scenario1_main": {
+        "Ledger": {
+          "file": "merchant_ledger.csv",
+          "columns": [
+            {
+              "header": "Ledger_ID",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9986,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Order_Ref",
+              "expected": "TransactionRef",
+              "suggested": "TransactionRef",
+              "confidence": 0.9947,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Booking_Date",
+              "expected": "TxnDate",
+              "suggested": "TxnDate",
+              "confidence": 0.9962,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Service",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9946,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Operator",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9995,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Amount_INR",
+              "expected": "Amount",
+              "suggested": "Amount",
+              "confidence": 0.9151,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Pay_Mode",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.973,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Order_Status",
+              "expected": "Status",
+              "suggested": "Status",
+              "confidence": 0.9978,
+              "band": "high",
+              "ok": true
+            }
+          ],
+          "accuracy": 1.0,
+          "required_fields_all_correct": true
+        },
+        "Gateway": {
+          "file": "gateway_statement.xlsx",
+          "columns": [
+            {
+              "header": "Payment Ref",
+              "expected": "TransactionRef",
+              "suggested": "TransactionRef",
+              "confidence": 0.9925,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Gateway Txn ID",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9459,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Txn Date",
+              "expected": "TxnDate",
+              "suggested": "TxnDate",
+              "confidence": 0.9938,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Gross Amount",
+              "expected": "Amount",
+              "suggested": "Amount",
+              "confidence": 0.9535,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "MDR Fee",
+              "expected": "Fees",
+              "suggested": "Fees",
+              "confidence": 0.9785,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Net Payable",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9999,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Settlement Date",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9865,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "UTR",
+              "expected": "SettlementRef",
+              "suggested": "SettlementRef",
+              "confidence": 0.9933,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Txn Status",
+              "expected": "Status",
+              "suggested": "Status",
+              "confidence": 0.9969,
+              "band": "high",
+              "ok": true
+            }
+          ],
+          "accuracy": 1.0,
+          "required_fields_all_correct": true
+        },
+        "Bank": {
+          "file": "bank_settlement.csv",
+          "columns": [
+            {
+              "header": "Credit Date",
+              "expected": "TxnDate",
+              "suggested": "TxnDate",
+              "confidence": 0.974,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Narration",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9857,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Bank Reference",
+              "expected": "SettlementRef",
+              "suggested": "SettlementRef",
+              "confidence": 0.9889,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Withdrawal Amt",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9946,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Credit Amount",
+              "expected": "Amount",
+              "suggested": "Amount",
+              "confidence": 0.9614,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Closing Balance",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9981,
+              "band": "high",
+              "ok": true
+            }
+          ],
+          "accuracy": 1.0,
+          "required_fields_all_correct": true
+        }
+      },
+      "scenario2_clean": {
+        "Ledger": {
+          "file": "merchant_ledger.csv",
+          "columns": [
+            {
+              "header": "Ledger_ID",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9985,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Order_Ref",
+              "expected": "TransactionRef",
+              "suggested": "TransactionRef",
+              "confidence": 0.9947,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Booking_Date",
+              "expected": "TxnDate",
+              "suggested": "TxnDate",
+              "confidence": 0.9956,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Service",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9945,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Operator",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9993,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Amount_INR",
+              "expected": "Amount",
+              "suggested": "Amount",
+              "confidence": 0.9211,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Pay_Mode",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9759,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Order_Status",
+              "expected": "Status",
+              "suggested": "Status",
+              "confidence": 0.9978,
+              "band": "high",
+              "ok": true
+            }
+          ],
+          "accuracy": 1.0,
+          "required_fields_all_correct": true
+        },
+        "Gateway": {
+          "file": "gateway_statement.xlsx",
+          "columns": [
+            {
+              "header": "Payment Ref",
+              "expected": "TransactionRef",
+              "suggested": "TransactionRef",
+              "confidence": 0.9926,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Gateway Txn ID",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9427,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Txn Date",
+              "expected": "TxnDate",
+              "suggested": "TxnDate",
+              "confidence": 0.9928,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Gross Amount",
+              "expected": "Amount",
+              "suggested": "Amount",
+              "confidence": 0.9587,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "MDR Fee",
+              "expected": "Fees",
+              "suggested": "Fees",
+              "confidence": 0.9799,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Net Payable",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9999,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Settlement Date",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9885,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "UTR",
+              "expected": "SettlementRef",
+              "suggested": "SettlementRef",
+              "confidence": 0.9931,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Txn Status",
+              "expected": "Status",
+              "suggested": "Status",
+              "confidence": 0.9968,
+              "band": "high",
+              "ok": true
+            }
+          ],
+          "accuracy": 1.0,
+          "required_fields_all_correct": true
+        },
+        "Bank": {
+          "file": "bank_settlement.csv",
+          "columns": [
+            {
+              "header": "Credit Date",
+              "expected": "TxnDate",
+              "suggested": "TxnDate",
+              "confidence": 0.9779,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Narration",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9725,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Bank Reference",
+              "expected": "SettlementRef",
+              "suggested": "SettlementRef",
+              "confidence": 0.9953,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Withdrawal Amt",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9956,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Credit Amount",
+              "expected": "Amount",
+              "suggested": "Amount",
+              "confidence": 0.9727,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Closing Balance",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9966,
+              "band": "high",
+              "ok": true
+            }
+          ],
+          "accuracy": 1.0,
+          "required_fields_all_correct": true
+        }
+      },
+      "scenario3_changed_headers": {
+        "Ledger": {
+          "file": "ledger_export.xlsx",
+          "columns": [
+            {
+              "header": "Internal ID",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9991,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Reference No",
+              "expected": "TransactionRef",
+              "suggested": "TransactionRef",
+              "confidence": 0.9716,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Order Date",
+              "expected": "TxnDate",
+              "suggested": "TxnDate",
+              "confidence": 0.9982,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Product",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9994,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Telecom Operator",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9994,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Value (INR)",
+              "expected": "Amount",
+              "suggested": "Amount",
+              "confidence": 0.9037,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Channel",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9965,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Order State",
+              "expected": "Status",
+              "suggested": "Status",
+              "confidence": 0.998,
+              "band": "high",
+              "ok": true
+            }
+          ],
+          "accuracy": 1.0,
+          "required_fields_all_correct": true
+        },
+        "Gateway": {
+          "file": "pg_report.csv",
+          "columns": [
+            {
+              "header": "Merchant Order Id",
+              "expected": "TransactionRef",
+              "suggested": "TransactionRef",
+              "confidence": 0.9705,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "PG Transaction Id",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9363,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Captured On",
+              "expected": "TxnDate",
+              "suggested": "TxnDate",
+              "confidence": 0.6187,
+              "band": "medium",
+              "ok": true
+            },
+            {
+              "header": "Amount Collected",
+              "expected": "Amount",
+              "suggested": "Amount",
+              "confidence": 0.9869,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Commission",
+              "expected": "Fees",
+              "suggested": "Fees",
+              "confidence": 0.99,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Amount Payable",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9988,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Payout Date",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9874,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Bank UTR",
+              "expected": "SettlementRef",
+              "suggested": "SettlementRef",
+              "confidence": 0.9692,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "State",
+              "expected": "Status",
+              "suggested": "Status",
+              "confidence": 0.9985,
+              "band": "high",
+              "ok": true
+            }
+          ],
+          "accuracy": 1.0,
+          "required_fields_all_correct": true
+        },
+        "Bank": {
+          "file": "account_statement.xlsx",
+          "columns": [
+            {
+              "header": "Value Dt",
+              "expected": "TxnDate",
+              "suggested": "TxnDate",
+              "confidence": 0.9857,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Txn Remarks",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9947,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Utr No",
+              "expected": "SettlementRef",
+              "suggested": "SettlementRef",
+              "confidence": 0.9307,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Dr Amt",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9926,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Cr Amt",
+              "expected": "Amount",
+              "suggested": "Amount",
+              "confidence": 0.8271,
+              "band": "high",
+              "ok": true
+            },
+            {
+              "header": "Running Balance",
+              "expected": null,
+              "suggested": null,
+              "confidence": 0.9986,
+              "band": "high",
+              "ok": true
+            }
+          ],
+          "accuracy": 1.0,
+          "required_fields_all_correct": true
+        }
+      }
+    },
+    "columns": 69,
+    "accuracy": 1.0,
+    "by_band": {
+      "high": {
+        "columns": 68,
+        "accuracy": 1.0
+      },
+      "medium": {
+        "columns": 1,
+        "accuracy": 1.0
+      },
+      "low": {
+        "columns": 0,
+        "accuracy": null
+      }
+    },
+    "wrong": []
+  },
+  "rss_mb": 117.8
+}

@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace ReconAI.Web.Services;
 
-public sealed record AiHealth(bool Reachable, string? Service, string? Version, string Detail);
+public sealed record AiHealth(bool Reachable, string? Service, string? Version, string Detail, string? ColumnRanker = null);
 
 /// <summary>
 /// Pings the local Python AI service. A failure here is reported, never thrown: the deterministic engine and the
@@ -19,7 +19,14 @@ public sealed class AiHealthClient(HttpClient http, ILogger<AiHealthClient> log)
             using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
             var root = doc.RootElement;
             string? Str(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
-            return new AiHealth(true, Str("service"), Str("version"), "Online");
+            string? ranker = null;
+            if (root.TryGetProperty("columnMapping", out var cm) && cm.ValueKind == JsonValueKind.Object)
+            {
+                var name = cm.TryGetProperty("name", out var n) ? n.GetString() : null;
+                var ver = cm.TryGetProperty("version", out var v) ? v.GetString() : null;
+                if (name is not null) ranker = $"{name} v{ver}";
+            }
+            return new AiHealth(true, Str("service"), Str("version"), "Online", ranker);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {

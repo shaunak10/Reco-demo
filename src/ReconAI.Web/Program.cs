@@ -26,6 +26,12 @@ builder.Services.AddScoped<ImportService>();
 builder.Services.AddSingleton<SampleData>();
 builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = 12 * 1024 * 1024);   // file limit is 5 MB; see ImportService.Limits
 
+builder.Services.AddHttpClient<IAiMappingClient, AiMappingClient>(c =>
+{
+    c.BaseAddress = new Uri(builder.Configuration["Ai:BaseUrl"] ?? "http://127.0.0.1:8765");
+    c.Timeout = TimeSpan.FromSeconds(builder.Configuration.GetValue("Ai:MappingTimeoutSeconds", 8));
+});
+
 // ---- AI service (localhost only). The deterministic engine must keep working when this is down. ----
 builder.Services.AddHttpClient<AiHealthClient>(c =>
 {

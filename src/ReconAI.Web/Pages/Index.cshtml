@@ -34,7 +34,7 @@
         <p class="muted small">
             @if (Model.Ai.Reachable)
             {
-                <text>@Model.Ai.Service v@(Model.Ai.Version) &middot; local Python service, models arrive in Steps 4, 5 and 7</text>
+                <text>@Model.Ai.Service v@(Model.Ai.Version) &middot; local Python service. @(Model.Ai.ColumnRanker is null ? "Column mapping model not loaded." : $"Column mapping: {Model.Ai.ColumnRanker}.") Rule drafting and exception analysis arrive in Steps 5 and 7.</text>
             }
             else
             {
@@ -71,7 +71,7 @@
             <li class="done"><span>1</span>Synthetic datasets and ground truth</li>
             <li class="done"><span>2</span>Solution, sign-in and role gating</li>
             <li class="done"><span>3</span>File import and storage</li>
-            <li><span>4</span>AI column mapping</li>
+            <li class="done"><span>4</span>AI column mapping</li>
             <li><span>5</span>English-to-rule with Admin approval</li>
             <li><span>6</span>Deterministic matcher and exceptions</li>
             <li><span>7&ndash;11</span>AI explanation, API, alerts, dashboards, packaging</li>

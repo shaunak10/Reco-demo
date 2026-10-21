@@ -26,6 +26,7 @@ public class ReconDbContext : DbContext
     public DbSet<SourceFile> SourceFiles => Set<SourceFile>();
     public DbSet<ColumnMapping> ColumnMappings => Set<ColumnMapping>();
     public DbSet<SourceRow> SourceRows => Set<SourceRow>();
+    public DbSet<AIInferenceLog> AIInferenceLogs => Set<AIInferenceLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -103,11 +104,25 @@ public class ReconDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.Kind, x.SettlementRef });
         });
 
+        b.Entity<AIInferenceLog>(e =>
+        {
+            e.Property(x => x.Task).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(24);
+            e.Property(x => x.UserEmail).HasMaxLength(256);
+            e.Property(x => x.ModelName).HasMaxLength(80);
+            e.Property(x => x.ModelVersion).HasMaxLength(40);
+            e.Property(x => x.InputSummary).HasMaxLength(200);
+            e.Property(x => x.Detail).HasMaxLength(400);
+            e.HasIndex(x => new { x.TenantId, x.CreatedUtc });
+            e.HasIndex(x => x.SourceFileId);
+        });
+
         ApplyTenantFilter<DemoUser>(b);
         ApplyTenantFilter<AuditEvent>(b);
         ApplyTenantFilter<SourceFile>(b);
         ApplyTenantFilter<ColumnMapping>(b);
         ApplyTenantFilter<SourceRow>(b);
+        ApplyTenantFilter<AIInferenceLog>(b);
     }
 
     /// <summary>Fail-closed tenant filter: with no tenant in context, no rows are visible.</summary>

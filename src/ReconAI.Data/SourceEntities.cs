@@ -63,8 +63,14 @@ public class ColumnMapping : ITenantScoped, IAppendOnly
     /// <summary>JSON object: heading -> canonical field name, or null when the column is ignored.</summary>
     public string MappingJson { get; set; } = "{}";
 
-    /// <summary>How the mapping came about; AI-assisted origins are added in Step 4.</summary>
+    /// <summary>How the mapping came about: "Manual", "AI-assisted (accepted as suggested)" or "AI-assisted (operator changed N of M columns)".</summary>
     public string Origin { get; set; } = "Manual";
+
+    /// <summary>The AI call whose suggestions the operator reviewed, if any. The AI never confirms anything itself.</summary>
+    public long? AiInferenceId { get; set; }
+    public int AiSuggestedCount { get; set; }
+    public int AiAcceptedCount { get; set; }
+    public int AiChangedColumns { get; set; }
     public int ConfirmedByUserId { get; set; }
     public string ConfirmedByEmail { get; set; } = "";
     public DateTime ConfirmedUtc { get; set; }

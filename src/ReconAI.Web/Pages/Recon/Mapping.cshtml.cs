@@ -17,6 +17,9 @@ public class MappingModel(ImportService import) : PageModel
     /// <summary>One entry per column, in file order: a canonical field name, or "" to ignore the column.</summary>
     [BindProperty] public string?[] Fields { get; set; } = [];
 
+    /// <summary>The AI call whose suggestions the operator reviewed (set by the page script). Used only to record provenance.</summary>
+    [BindProperty] public long? InferenceId { get; set; }
+
     public async Task<IActionResult> OnGetAsync(int id, CancellationToken ct)
     {
         Source = await import.FindAsync(id, ct);
@@ -36,12 +39,41 @@ public class MappingModel(ImportService import) : PageModel
         return new JsonResult(await import.PreviewAsync(file, Fields, ct));
     }
 
+    /// <summary>AJAX: asks the local AI for a suggested mapping. Nothing is saved; the operator must confirm.</summary>
+    public async Task<IActionResult> OnPostSuggestAsync(int id, CancellationToken ct)
+    {
+        var file = await import.FindAsync(id, ct);
+        if (file is null || file.IsVoided || file.Status != SourceFileStatus.AwaitingMapping) return NotFound();
+
+        var r = await import.SuggestAsync(file, User, ct);
+        static string LabelOf(CanonicalField? f) => f is { } v ? SourceSchema.Label(v) : "Ignore this column";
+        return new JsonResult(new
+        {
+            available = r.Available,
+            message = r.Message,
+            inferenceId = r.InferenceId,
+            model = r.Model is null ? null : new { r.Model.Name, r.Model.Version, r.Model.Algorithm },
+            latencyMs = r.LatencyMs,
+            problems = r.Problems,
+            suggestions = r.Suggestions.Select(s => new
+            {
+                columnIndex = s.ColumnIndex,
+                field = s.Field?.ToString(),
+                fieldLabel = LabelOf(s.Field),
+                confidence = s.Confidence,
+                band = s.Band,
+                reasons = s.Reasons,
+                alternatives = s.Alternatives.Select(a => new { field = a.Field?.ToString(), fieldLabel = LabelOf(a.Field), confidence = a.Confidence }),
+            }),
+        });
+    }
+
     public async Task<IActionResult> OnPostConfirmAsync(int id, CancellationToken ct)
     {
         Source = await import.FindAsync(id, ct);
         if (Source is null) return NotFound();
 
-        var outcome = await import.ConfirmAsync(Source, Fields, User, ct);
+        var outcome = await import.ConfirmAsync(Source, Fields, User, InferenceId, ct);
         if (outcome.Ok)
         {
             TempData["Notice"] = $"Imported {outcome.Valid} valid row(s){(outcome.Rejected > 0 ? $" and kept {outcome.Rejected} rejected row(s) with their reasons" : "")}.";
